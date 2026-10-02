@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Digital Battery Passport — DBP Portal</title>
+  <style>
+    :root {
+      --navy: #142D46; --blue: #2369A5; --teal: #008787;
+      --green: #2C8A4A; --orange: #D95C1B; --red: #C0392B;
+      --bg: #F4F7FA; --card: #ffffff; --border: #DCE7EE;
+      --text: #1A2533; --muted: #5A6A7A;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); }
+    header { background: var(--navy); color: white; padding: 18px 32px; display: flex; align-items: center; gap: 16px; }
+    header .logo { font-size: 28px; }
+    header h1 { font-size: 20px; font-weight: 700; }
+    header p  { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+    .eu-badge { margin-left: auto; background: #003399; border: 2px solid #FFCC00; color: #FFCC00; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; letter-spacing: 0.5px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    .search-bar { display: flex; gap: 12px; margin-bottom: 32px; }
+    .search-bar input { flex: 1; padding: 12px 16px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; transition: border-color 0.2s; }
+    .search-bar input:focus { border-color: var(--blue); }
+    .search-bar button { background: var(--blue); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .search-bar button:hover { background: var(--navy); }
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; border-left: 5px solid var(--blue); }
+    .stat-card .label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 32px; font-weight: 800; color: var(--navy); margin: 6px 0 2px; }
+    .stat-card .sub   { font-size: 12px; color: var(--muted); }
+    .section-title { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 16px; }
+    .passport-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .passport-header { background: var(--navy); color: white; padding: 20px 28px; display: flex; align-items: center; gap: 20px; }
+    .passport-header .bin-tag { background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 13px; font-family: monospace; }
+    .lifecycle-badge { margin-left: auto; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+    .ACTIVE               { background: #d4edda; color: #155724; }
+    .SECOND_LIFE_ELIGIBLE { background: #fff3cd; color: #856404; }
+    .END_OF_LIFE          { background: #f8d7da; color: #721c24; }
+    .passport-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--border); }
+    .data-cell { background: var(--card); padding: 18px 24px; }
+    .data-cell .label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+    .data-cell .val   { font-size: 22px; font-weight: 700; color: var(--navy); margin-top: 4px; }
+    .data-cell .unit  { font-size: 12px; color: var(--muted); }
+    .hash-chain { padding: 16px 24px; background: #F8FAFC; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); font-family: monospace; word-break: break-all; }
+    .hash-chain strong { color: var(--navy); }
+    .tier-info { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .tier-pill { padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .tier-1 { background: #e8f4fd; color: #1a6fa8; border: 1px solid #bee3f8; }
+    .tier-2 { background: #e8f8f5; color: #1a7a5e; border: 1px solid #b2dfdb; }
+    .tier-3 { background: #fef3e2; color: #a05c1a; border: 1px solid #f5c842; }
+    .error-msg { background: #fff3f3; border: 1px solid #f5c6cb; border-radius: 8px; padding: 16px 20px; color: #721c24; margin-bottom: 16px; }
+    .loading { color: var(--muted); font-style: italic; padding: 20px 0; }
+    footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">🔋</div>
+  <div>
+    <h1>Digital Battery Passport Portal</h1>
+    <p>EU Regulation 2023/1542 · ESPR 2027 Compliant · BITS Pilani Research Project</p>
+  </div>
+  <div class="eu-badge">EU ESPR 2027</div>
+</header>
+<main>
+  <div class="search-bar">
+    <input type="text" id="binInput" placeholder="Enter Battery ID (BIN) e.g. DBP-2024HT65556-001" value="DBP-2024HT65556-001"/>
+    <button onclick="lookupBattery()">🔍 Lookup Passport</button>
+  </div>
+  <div class="tier-info">
+    <div class="tier-pill tier-1">🌐 Tier 1: Public (QR/NFC) — Basic Info</div>
+    <div class="tier-pill tier-2">🔒 Tier 2: OAuth 2.0 — OEM / Fleet</div>
+    <div class="tier-pill tier-3">🏛️ Tier 3: X.509 — Regulator / Recycler</div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card" style="border-left-color: var(--teal)">
+      <div class="label">Total Records</div>
+      <div class="value" id="statTotal">—</div>
+      <div class="sub">DBP entries in cloud</div>
+    </div>
+    <div class="stat-card" style="border-left-color: var(--blue)">
+      <div class="label">State of Charge</div>
+      <div class="value" id="statSoc">—</div>
+      <div class="sub">Current SoC %</div>
+    </div>
+    <div class="stat-card" style="border-left-color: var(--green)">
+      <div class="label">State of Health</div>
+      <div class="value" id="statSoh">—</div>
+      <div class="sub">Ah-throughput method</div>
+    </div>
+    <div class="stat-card" style="border-left-color: var(--orange)">
+      <div class="label">Cycle Count</div>
+      <div class="value" id="statCycles">—</div>
+      <div class="sub">Full charge/discharge</div>
+    </div>
+  </div>
+  <div class="section-title">Battery Passport</div>
+  <div id="passportContainer">
+    <div class="loading">Enter a BIN above and click Lookup to view the battery passport.</div>
+  </div>
+</main>
+<footer>
+  Digital Battery Passport System · EU ESPR 2027 Compliant · Nithyanandham S (2024HT65556) · BITS Pilani · 2026
+</footer>
+<script>
+  const API_BASE = 'https://dbp-cloud.onrender.com';
+  async function lookupBattery() {
+    const bin = document.getElementById('binInput').value.trim();
+    if (!bin) return;
+    const container = document.getElementById('passportContainer');
+    container.innerHTML = '<div class="loading">⏳ Fetching passport data...</div>';
+    try {
+      const res = await fetch(API_BASE + '/api/v1/dbp/' + encodeURIComponent(bin) + '/public');
+      if (!res.ok) { const err = await res.json(); container.innerHTML = '<div class="error-msg">❌ ' + (err.detail || 'Battery not found') + '</div>'; return; }
+      const data = await res.json();
+      renderPassport(data);
+    } catch (e) {
+      container.innerHTML = '<div class="error-msg">❌ Could not connect to API: ' + e.message + '</div>';
+    }
+  }
+  function renderPassport(data) {
+    document.getElementById('statSoc').textContent = data.soc_pct?.toFixed(1) + '%';
+    document.getElementById('statSoh').textContent = data.soh_pct?.toFixed(1) + '%';
+    document.getElementById('statCycles').textContent = data.cycle_count;
+    document.getElementById('statTotal').textContent = '1';
+    const lc = data.lifecycle_status || 'ACTIVE';
+    const lcLabel = {'ACTIVE':'✅ ACTIVE (SoH ≥ 80%)','SECOND_LIFE_ELIGIBLE':'⚡ SECOND LIFE (SoH 70–80%)','END_OF_LIFE':'♻️ END OF LIFE (SoH < 70%)'}[lc] || lc;
+    document.getElementById('passportContainer').innerHTML = '<div class="passport-card"><div class="passport-header"><div><div style="font-size:13px;opacity:0.7;margin-bottom:4px">Battery Identification Number</div><div style="font-size:20px;font-weight:800">' + data.bin + '</div></div><div class="bin-tag">EU Reg 2023/1542</div><div class="lifecycle-badge ' + lc + '">' + lcLabel + '</div></div><div class="passport-body"><div class="data-cell"><div class="label">State of Charge</div><div class="val">' + data.soc_pct?.toFixed(1) + '<span class="unit">%</span></div><div class="unit">Coulomb Counting ±2%</div></div><div class="data-cell"><div class="label">State of Health</div><div class="val">' + data.soh_pct?.toFixed(1) + '<span class="unit">%</span></div><div class="unit">Ah-Throughput LUT ±1.5%</div></div><div class="data-cell"><div class="label">Cycle Count</div><div class="val">' + data.cycle_count + '</div><div class="unit">Full cycles (EEPROM)</div></div><div class="data-cell"><div class="label">Last Updated</div><div class="val" style="font-size:14px;margin-top:8px">' + new Date(data.last_updated).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) + '</div><div class="unit">IST (Asia/Kolkata)</div></div></div><div class="hash-chain"><strong>SHA-256 Hash Chain:</strong> EU Art.10 immutability verified · Append-only cloud store · Tamper-evident audit trail</div></div><div style="padding:12px 0;color:var(--muted);font-size:13px">🔒 <strong>Access Level:</strong> Tier 1 — Public (QR/NFC). OEMs and fleet operators need Tier 2 OAuth 2.0 access. Regulators need Tier 3 X.509 credentials.</div>';
+  }
+  window.onload = () => lookupBattery();
+</script>
+</body>
+</html>
