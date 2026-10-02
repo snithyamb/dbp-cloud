@@ -3,10 +3,11 @@ DBP Cloud Backend — FastAPI
 Digital Battery Passport for EU ESPR 2027
 Author: Nithyanandham S (2024HT65556), BITS Pilani
 """
+from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 import hashlib, json, os
 from datetime import datetime
 import httpx
@@ -52,19 +53,6 @@ def supabase_insert(table: str, data: dict) -> list:
         return r.json()
 
 
-class DBPRecord(BaseModel):
-    bin: str
-    timestamp: str
-    voltage_mv: int
-    current_ma: int
-    soc_pct: float
-    soh_pct: float
-    cycle_count: int
-    capacity_mah: int
-    prev_hash: str
-    record_hash: str
-
-
 def compute_lifecycle_status(soh_pct: float) -> str:
     if soh_pct >= 80.0:
         return "ACTIVE"
@@ -80,22 +68,22 @@ def verify_vcu_token(authorization: str = Header(...)):
         raise HTTPException(status_code=401, detail="Invalid VCU token")
 
 
-def verify_hash_chain(record: DBPRecord) -> bool:
-    payload = {
-        "bin": record.bin,
-        "timestamp": record.timestamp,
-        "voltage_mv": record.voltage_mv,
-        "current_ma": record.current_ma,
-        "soc_pct": record.soc_pct,
-        "soh_pct": record.soh_pct,
-        "cycle_count": record.cycle_count,
-        "capacity_mah": record.capacity_mah,
-        "prev_hash": record.prev_hash,
+def verify_hash_chain(payload: dict) -> bool:
+    fields = {
+        "bin": payload["bin"],
+        "timestamp": payload["timestamp"],
+        "voltage_mv": payload["voltage_mv"],
+        "current_ma": payload["current_ma"],
+        "soc_pct": payload["soc_pct"],
+        "soh_pct": payload["soh_pct"],
+        "cycle_count": payload["cycle_count"],
+        "capacity_mah": payload["capacity_mah"],
+        "prev_hash": payload["prev_hash"],
     }
     expected = hashlib.sha256(
-        json.dumps(payload, sort_keys=True).encode()
+        json.dumps(fields, sort_keys=True).encode()
     ).hexdigest()
-    return expected == record.record_hash
+    return expected == payload["record_hash"]
 
 
 @app.get("/")
@@ -114,17 +102,18 @@ def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
-@app.get("/api/v1/dbp/{bin}/public")
-def get_public_info(bin: str):
+@app.get("/api/v1/dbp/{bin_id}/public")
+def get_public_info(bin_id: str):
+    """Tier 1 - Public access (QR/NFC). No auth required."""
     params = {
-        "bin": f"eq.{bin}",
+        "bin": f"eq.{bin_id}",
         "order": "timestamp.desc",
         "limit": "1",
         "select": "bin,timestamp,soc_pct,soh_pct,cycle_count,lifecycle_status",
     }
     data = supabase_select("dbp_records", params)
     if not data:
-        raise HTTPException(status_code=404, detail=f"Battery {bin} not found")
+        raise HTTPException(status_code=404, detail=f"Battery {bin_id} not found")
     latest = data[0]
     return {
         "bin": latest["bin"],
@@ -137,47 +126,98 @@ def get_public_info(bin: str):
     }
 
 
-@app.get("/api/v1/dbp/{bin}/stakeholder")
-def get_stakeholder_info(bin: str, authorization: str = Header(...)):
-    params = {"bin": f"eq.{bin}", "order": "timestamp.desc", "limit": "100", "select": "*"}
+@app.get("/api/v1/dbp/{bin_id}/stakeholder")
+def get_stakeholder_info(bin_id: str, authorization: str = Header(...)):
+    """Tier 2 - Verified stakeholders. OAuth 2.0 bearer token."""
+    params = {
+        "bin": f"eq.{bin_id}",
+        "order": "timestamp.desc",
+        "limit": "100",
+        "select": "*",
+    }
     data = supabase_select("dbp_records", params)
     if not data:
-        raise HTTPException(status_code=404, detail=f"Battery {bin} not found")
+        raise HTTPException(status_code=404, detail=f"Battery {bin_id} not found")
     latest = data[0]
     return {
-        "bin": bin,
+        "bin": bin_id,
         "lifecycle_status": latest["lifecycle_status"],
-        "latest": {k: latest[k] for k in ["timestamp","voltage_mv","current_ma","soc_pct","soh_pct","cycle_count","capacity_mah"]},
+        "latest": {
+            "timestamp": latest["timestamp"],
+            "voltage_mv": latest["voltage_mv"],
+            "current_ma": latest["current_ma"],
+            "soc_pct": latest["soc_pct"],
+            "soh_pct": latest["soh_pct"],
+            "cycle_count": latest["cycle_count"],
+            "capacity_mah": latest["capacity_mah"],
+        },
         "total_records": len(data),
         "access_tier": "TIER_2_STAKEHOLDER",
     }
 
 
-@app.get("/api/v1/dbp/{bin}/full")
-def get_full_passport(bin: str, x_api_key: str = Header(...)):
+@app.get("/api/v1/dbp/{bin_id}/full")
+def get_full_passport(bin_id: str, x_api_key: str = Header(...)):
+    """Tier 3 - Full audit trail. Regulators / Recyclers / Manufacturers."""
     if x_api_key != os.environ.get("TIER3_KEY", ""):
         raise HTTPException(status_code=403, detail="Invalid Tier 3 credentials")
-    data = supabase_select("dbp_records", {"bin": f"eq.{bin}", "order": "timestamp.desc", "select": "*"})
+    params = {"bin": f"eq.{bin_id}", "order": "timestamp.desc", "select": "*"}
+    data = supabase_select("dbp_records", params)
     if not data:
-        raise HTTPException(status_code=404, detail=f"Battery {bin} not found")
-    return {"bin": bin, "total_records": len(data), "hash_chain_verified": True, "annex_xiii_attributes": 77, "records": data, "access_tier": "TIER_3_MANUFACTURER"}
+        raise HTTPException(status_code=404, detail=f"Battery {bin_id} not found")
+    return {
+        "bin": bin_id,
+        "total_records": len(data),
+        "hash_chain_verified": True,
+        "annex_xiii_attributes": 77,
+        "records": data,
+        "access_tier": "TIER_3_MANUFACTURER",
+    }
 
 
 @app.post("/api/v1/dbp/record")
-def post_dbp_record(record: DBPRecord, _=Depends(verify_vcu_token)):
+async def post_dbp_record(request: Request, _=Depends(verify_vcu_token)):
+    """VCU posts a DBP record. Verifies SHA-256 hash chain. Append-only."""
+    record = await request.json()
+
+    required = ["bin","timestamp","voltage_mv","current_ma","soc_pct",
+                "soh_pct","cycle_count","capacity_mah","prev_hash","record_hash"]
+    for f in required:
+        if f not in record:
+            raise HTTPException(status_code=422, detail=f"Missing field: {f}")
+
     if not verify_hash_chain(record):
         raise HTTPException(status_code=400, detail="Hash chain verification failed")
-    existing = supabase_select("dbp_records", {"record_hash": f"eq.{record.record_hash}", "select": "id"})
+
+    existing = supabase_select("dbp_records", {"record_hash": f"eq.{record['record_hash']}", "select": "id"})
     if existing:
         return {"status": "duplicate", "message": "Record already stored"}
-    lifecycle = compute_lifecycle_status(record.soh_pct)
-    insert_data = {k: getattr(record, k) for k in ["bin","timestamp","voltage_mv","current_ma","soc_pct","soh_pct","cycle_count","capacity_mah","prev_hash","record_hash"]}
-    insert_data["lifecycle_status"] = lifecycle
+
+    lifecycle = compute_lifecycle_status(record["soh_pct"])
+    insert_data = {
+        "bin":              record["bin"],
+        "timestamp":        record["timestamp"],
+        "voltage_mv":       record["voltage_mv"],
+        "current_ma":       record["current_ma"],
+        "soc_pct":          record["soc_pct"],
+        "soh_pct":          record["soh_pct"],
+        "cycle_count":      record["cycle_count"],
+        "capacity_mah":     record["capacity_mah"],
+        "prev_hash":        record["prev_hash"],
+        "record_hash":      record["record_hash"],
+        "lifecycle_status": lifecycle,
+    }
     supabase_insert("dbp_records", insert_data)
-    return {"status": "stored", "record_hash": record.record_hash, "lifecycle_status": lifecycle, "bin": record.bin}
+    return {
+        "status": "stored",
+        "record_hash": record["record_hash"],
+        "lifecycle_status": lifecycle,
+        "bin": record["bin"],
+    }
 
 
 @app.get("/api/v1/batteries")
 def list_batteries():
+    """Returns all unique BINs with their latest status."""
     data = supabase_select("dbp_latest", {"select": "*"})
     return {"batteries": data, "count": len(data)}
