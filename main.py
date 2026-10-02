@@ -7,10 +7,9 @@ Author: Nithyanandham S (2024HT65556), BITS Pilani
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
 import hashlib, json, os
 from datetime import datetime
-import supabase as sb
+import httpx
 
 app = FastAPI(
     title="Digital Battery Passport API",
@@ -29,7 +28,28 @@ SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 VCU_TOKEN    = os.environ["VCU_TOKEN"]
 
-client = sb.create_client(SUPABASE_URL, SUPABASE_KEY)
+HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "return=representation",
+}
+
+REST_URL = f"{SUPABASE_URL}/rest/v1"
+
+
+def supabase_select(table: str, params: dict) -> list:
+    with httpx.Client() as client:
+        r = client.get(f"{REST_URL}/{table}", headers=HEADERS, params=params)
+        r.raise_for_status()
+        return r.json()
+
+
+def supabase_insert(table: str, data: dict) -> list:
+    with httpx.Client() as client:
+        r = client.post(f"{REST_URL}/{table}", headers=HEADERS, json=data)
+        r.raise_for_status()
+        return r.json()
 
 
 class DBPRecord(BaseModel):
@@ -96,14 +116,16 @@ def health():
 
 @app.get("/api/v1/dbp/{bin}/public")
 def get_public_info(bin: str):
-    result = client.table("dbp_records").select(
-        "bin, timestamp, soc_pct, soh_pct, cycle_count, lifecycle_status"
-    ).eq("bin", bin).order("timestamp", desc=True).limit(1).execute()
-
-    if not result.data:
+    params = {
+        "bin": f"eq.{bin}",
+        "order": "timestamp.desc",
+        "limit": "1",
+        "select": "bin,timestamp,soc_pct,soh_pct,cycle_count,lifecycle_status",
+    }
+    data = supabase_select("dbp_records", params)
+    if not data:
         raise HTTPException(status_code=404, detail=f"Battery {bin} not found")
-
-    latest = result.data[0]
+    latest = data[0]
     return {
         "bin": latest["bin"],
         "last_updated": latest["timestamp"],
@@ -117,28 +139,16 @@ def get_public_info(bin: str):
 
 @app.get("/api/v1/dbp/{bin}/stakeholder")
 def get_stakeholder_info(bin: str, authorization: str = Header(...)):
-    result = client.table("dbp_records").select("*").eq("bin", bin).order(
-        "timestamp", desc=True
-    ).limit(100).execute()
-
-    if not result.data:
+    params = {"bin": f"eq.{bin}", "order": "timestamp.desc", "limit": "100", "select": "*"}
+    data = supabase_select("dbp_records", params)
+    if not data:
         raise HTTPException(status_code=404, detail=f"Battery {bin} not found")
-
-    records = result.data
-    latest = records[0]
+    latest = data[0]
     return {
         "bin": bin,
         "lifecycle_status": latest["lifecycle_status"],
-        "latest": {
-            "timestamp": latest["timestamp"],
-            "voltage_mv": latest["voltage_mv"],
-            "current_ma": latest["current_ma"],
-            "soc_pct": latest["soc_pct"],
-            "soh_pct": latest["soh_pct"],
-            "cycle_count": latest["cycle_count"],
-            "capacity_mah": latest["capacity_mah"],
-        },
-        "total_records": len(records),
+        "latest": {k: latest[k] for k in ["timestamp","voltage_mv","current_ma","soc_pct","soh_pct","cycle_count","capacity_mah"]},
+        "total_records": len(data),
         "access_tier": "TIER_2_STAKEHOLDER",
     }
 
@@ -147,62 +157,27 @@ def get_stakeholder_info(bin: str, authorization: str = Header(...)):
 def get_full_passport(bin: str, x_api_key: str = Header(...)):
     if x_api_key != os.environ.get("TIER3_KEY", ""):
         raise HTTPException(status_code=403, detail="Invalid Tier 3 credentials")
-
-    result = client.table("dbp_records").select("*").eq("bin", bin).order(
-        "timestamp", desc=True
-    ).execute()
-
-    if not result.data:
+    data = supabase_select("dbp_records", {"bin": f"eq.{bin}", "order": "timestamp.desc", "select": "*"})
+    if not data:
         raise HTTPException(status_code=404, detail=f"Battery {bin} not found")
-
-    return {
-        "bin": bin,
-        "total_records": len(result.data),
-        "hash_chain_verified": True,
-        "annex_xiii_attributes": 77,
-        "records": result.data,
-        "access_tier": "TIER_3_MANUFACTURER",
-    }
+    return {"bin": bin, "total_records": len(data), "hash_chain_verified": True, "annex_xiii_attributes": 77, "records": data, "access_tier": "TIER_3_MANUFACTURER"}
 
 
 @app.post("/api/v1/dbp/record")
 def post_dbp_record(record: DBPRecord, _=Depends(verify_vcu_token)):
     if not verify_hash_chain(record):
         raise HTTPException(status_code=400, detail="Hash chain verification failed")
-
-    existing = client.table("dbp_records").select("id").eq(
-        "record_hash", record.record_hash
-    ).execute()
-    if existing.data:
+    existing = supabase_select("dbp_records", {"record_hash": f"eq.{record.record_hash}", "select": "id"})
+    if existing:
         return {"status": "duplicate", "message": "Record already stored"}
-
     lifecycle = compute_lifecycle_status(record.soh_pct)
-
-    insert_data = {
-        "bin":              record.bin,
-        "timestamp":        record.timestamp,
-        "voltage_mv":       record.voltage_mv,
-        "current_ma":       record.current_ma,
-        "soc_pct":          record.soc_pct,
-        "soh_pct":          record.soh_pct,
-        "cycle_count":      record.cycle_count,
-        "capacity_mah":     record.capacity_mah,
-        "prev_hash":        record.prev_hash,
-        "record_hash":      record.record_hash,
-        "lifecycle_status": lifecycle,
-    }
-
-    result = client.table("dbp_records").insert(insert_data).execute()
-
-    return {
-        "status": "stored",
-        "record_hash": record.record_hash,
-        "lifecycle_status": lifecycle,
-        "bin": record.bin,
-    }
+    insert_data = {k: getattr(record, k) for k in ["bin","timestamp","voltage_mv","current_ma","soc_pct","soh_pct","cycle_count","capacity_mah","prev_hash","record_hash"]}
+    insert_data["lifecycle_status"] = lifecycle
+    supabase_insert("dbp_records", insert_data)
+    return {"status": "stored", "record_hash": record.record_hash, "lifecycle_status": lifecycle, "bin": record.bin}
 
 
 @app.get("/api/v1/batteries")
 def list_batteries():
-    result = client.table("dbp_latest").select("*").execute()
-    return {"batteries": result.data, "count": len(result.data)}
+    data = supabase_select("dbp_latest", {"select": "*"})
+    return {"batteries": data, "count": len(data)}
