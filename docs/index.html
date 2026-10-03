@@ -26,7 +26,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  /* ââ HEADER ââ */
+  /* -- HEADER -- */
   .header {
     background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
     color: white; padding: 14px 28px;
@@ -56,7 +56,7 @@
   .logout-btn.visible { display: block; }
   .logout-btn:hover { background: rgba(255,255,255,0.3); }
 
-  /* ââ LOGIN SCREEN ââ */
+  /* -- LOGIN SCREEN -- */
   #login-screen {
     display: flex; align-items: center; justify-content: center;
     min-height: calc(100vh - 60px); padding: 20px;
@@ -107,7 +107,7 @@
   .t2 { background: var(--amber-bg); color: var(--amber); }
   .t3 { background: var(--purple-bg); color: var(--purple); }
 
-  /* ââ PORTAL SCREEN ââ */
+  /* -- PORTAL SCREEN -- */
   #portal-screen { display: none; padding: 24px 16px; max-width: 900px; margin: 0 auto; }
 
   /* Tier Banner */
@@ -144,7 +144,7 @@
   /* Results */
   #result { }
   .spinner { text-align: center; padding: 30px; color: var(--gray); font-size: 0.9rem; }
-  .spinner::before { content: 'â³ '; }
+  .spinner::before { content: '&#x23F3; '; }
 
   /* Stats row */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
@@ -247,17 +247,17 @@
 </head>
 <body>
 
-<!-- ââ HEADER ââââââââââââââââââââââââââââââââââââââââââââââ -->
+<!-- == HEADER ============================================== -->
 <div class="header">
   <div class="header-left">
-    <span class="eu-flag">ðªðº</span>
+    <span class="eu-flag">&#x1F1EA;&#x1F1FA;</span>
     <div class="header-title">
       <h1>Digital Battery Passport</h1>
-      <p>EU Regulation 2023/1542 Â· ESPR 2027 Compliance Portal</p>
+      <p>EU Regulation 2023/1542 &middot; ESPR 2027 Compliance Portal</p>
     </div>
   </div>
   <div class="header-right">
-    <div class="reg-badge">Art. 77 Â· Annex XIII Â· 77 Attributes</div>
+    <div class="reg-badge">Art. 77 &middot; Annex XIII &middot; 77 Attributes</div>
     <div class="user-pill" id="userPill">
       <span class="tier-dot" id="tierDot"></span>
       <span id="userLabel"></span>
@@ -266,11 +266,11 @@
   </div>
 </div>
 
-<!-- ââ LOGIN SCREEN ââââââââââââââââââââââââââââââââââââââââââ -->
+<!-- == LOGIN SCREEN ========================================== -->
 <div id="login-screen">
   <div class="login-card">
-    <h2>ð Secure Access Portal</h2>
-    <p class="subtitle">EU Regulation 2023/1542 â Three-Tier Access Control (Art. 77)</p>
+    <h2>&#x1F510; Secure Access Portal</h2>
+    <p class="subtitle">EU Regulation 2023/1542 &mdash; Three-Tier Access Control (Art. 77)</p>
 
     <div class="login-error" id="loginError">Invalid email or password. Please try again.</div>
 
@@ -281,18 +281,18 @@
     <input class="form-input" type="password" id="passInput" placeholder="Enter your password"
            onkeydown="if(event.key==='Enter') doLogin()"/>
 
-    <button class="login-btn" onclick="doLogin()">Sign In â</button>
+    <button class="login-btn" onclick="doLogin()">Sign In &rarr;</button>
 
     <!-- Demo credentials quick-fill -->
     <div class="demo-creds">
-      <p>Demo Accounts â Click to auto-fill</p>
+      <p>Demo Accounts &mdash; Click to auto-fill</p>
 
       <div class="cred-row" onclick="fillCreds('public@dbp.eu','Public@123')">
         <div class="cred-info">
           <span class="cred-email">public@dbp.eu</span>
           <span class="cred-pass">Password: Public@123</span>
         </div>
-        <span class="tier-badge t1">Tier 1 Â· Public</span>
+        <span class="tier-badge t1">Tier 1 &middot; Public</span>
       </div>
 
       <div class="cred-row" onclick="fillCreds('oem@dbp.eu','OEM@2024')">
@@ -300,7 +300,7 @@
           <span class="cred-email">oem@dbp.eu</span>
           <span class="cred-pass">Password: OEM@2024</span>
         </div>
-        <span class="tier-badge t2">Tier 2 Â· OEM</span>
+        <span class="tier-badge t2">Tier 2 &middot; OEM</span>
       </div>
 
       <div class="cred-row" onclick="fillCreds('regulator@eu.gov','Regulator@EU')">
@@ -308,13 +308,13 @@
           <span class="cred-email">regulator@eu.gov</span>
           <span class="cred-pass">Password: Regulator@EU</span>
         </div>
-        <span class="tier-badge t3">Tier 3 Â· Regulator</span>
+        <span class="tier-badge t3">Tier 3 &middot; Regulator</span>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ââ PORTAL SCREEN ââââââââââââââââââââââââââââââââââââââââââ -->
+<!-- == PORTAL SCREEN ========================================== -->
 <div id="portal-screen">
 
   <!-- Tier banner -->
@@ -328,7 +328,7 @@
 
   <!-- Search -->
   <div class="search-card">
-    <h3>ð Battery Passport Lookup</h3>
+    <h3>&#x1F50D; Battery Passport Lookup</h3>
     <p>Enter a Battery Identification Number (BIN) to retrieve its Digital Passport</p>
     <div class="search-row">
       <input class="search-input" type="text" id="binInput" value="DBP-2024HT65556-001"/>
@@ -340,27 +340,27 @@
 </div>
 
 <script>
-// ââ USER DATABASE âââââââââââââââââââââââââââââââââââââââââââââ
+// -- USER DATABASE ---------------------------------------------
 const USERS = {
   'public@dbp.eu': {
     password: 'Public@123',
     tier: 1,
     name: 'Public User',
-    role: 'Tier 1 Â· Public Access (No Authentication)',
+    role: 'Tier 1 &middot; Public Access (No Authentication)',
     dotColor: '#16a34a'
   },
   'oem@dbp.eu': {
     password: 'OEM@2024',
     tier: 2,
     name: 'OEM Engineer',
-    role: 'Tier 2 Â· OEM / OAuth 2.0',
+    role: 'Tier 2 &middot; OEM / OAuth 2.0',
     dotColor: '#d97706'
   },
   'regulator@eu.gov': {
     password: 'Regulator@EU',
     tier: 3,
     name: 'EU Regulator',
-    role: 'Tier 3 Â· Regulator / X.509',
+    role: 'Tier 3 &middot; Regulator / X.509',
     dotColor: '#7c3aed'
   }
 };
@@ -368,7 +368,7 @@ const USERS = {
 const API_BASE = 'https://dbp-cloud.onrender.com';
 let currentUser = null;
 
-// ââ LOGIN âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// -- LOGIN -----------------------------------------------------
 function fillCreds(email, pass) {
   document.getElementById('emailInput').value = email;
   document.getElementById('passInput').value = pass;
@@ -406,15 +406,15 @@ function showPortal() {
   const pill = document.getElementById('userPill');
   pill.classList.add('visible');
   document.getElementById('tierDot').style.background = currentUser.dotColor;
-  document.getElementById('userLabel').textContent = currentUser.name + ' (' + currentUser.role.split('Â·')[0].trim() + ')';
+  document.getElementById('userLabel').textContent = currentUser.name + ' (' + currentUser.role.split('&middot;')[0].trim() + ')';
   document.getElementById('logoutBtn').classList.add('visible');
 
   // Tier banner
   const banner = document.getElementById('tierBanner');
   const configs = {
-    1: { cls:'t1', icon:'ð', title:'Tier 1 â Public Access', sub:'Read-only. Basic passport fields visible. No authentication required per EU Regulation Art. 77(3).' },
-    2: { cls:'t2', icon:'ð­', title:'Tier 2 â OEM / Stakeholder Access', sub:'Extended fields visible. Authenticated via OAuth 2.0. Includes telemetry, supply chain and technical specifications.' },
-    3: { cls:'t3', icon:'ðï¸', title:'Tier 3 â Regulatory Authority Access', sub:'Full 77-attribute Annex XIII disclosure. Authenticated via X.509 Certificate. Includes all compliance and audit data.' }
+    1: { cls:'t1', icon:'&#x1F310;', title:'Tier 1 &mdash; Public Access', sub:'Read-only. Basic passport fields visible. No authentication required per EU Regulation Art. 77(3).' },
+    2: { cls:'t2', icon:'&#x1F3ED;', title:'Tier 2 &mdash; OEM / Stakeholder Access', sub:'Extended fields visible. Authenticated via OAuth 2.0. Includes telemetry, supply chain and technical specifications.' },
+    3: { cls:'t3', icon:'&#x1F3DB;', title:'Tier 3 &mdash; Regulatory Authority Access', sub:'Full 77-attribute Annex XIII disclosure. Authenticated via X.509 Certificate. Includes all compliance and audit data.' }
   };
   const c = configs[currentUser.tier];
   banner.className = 'tier-banner ' + c.cls;
@@ -425,11 +425,11 @@ function showPortal() {
   lookupBattery();
 }
 
-// ââ LOOKUP ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// -- LOOKUP ----------------------------------------------------
 async function lookupBattery() {
   const bin = document.getElementById('binInput').value.trim();
   if (!bin) return;
-  document.getElementById('result').innerHTML = '<div class="spinner">Fetching passport dataâ¦</div>';
+  document.getElementById('result').innerHTML = '<div class="spinner">Fetching passport data&hellip;</div>';
 
   try {
     // Always fetch public data
@@ -459,13 +459,13 @@ async function lookupBattery() {
   } catch (e) {
     document.getElementById('result').innerHTML =
       `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:16px;color:#991b1b;font-size:0.85rem;">
-        â ${e.message || 'Error fetching passport data'}
+        &#x274C; ${e.message || 'Error fetching passport data'}
       </div>`;
   }
 }
 
 function fmt(val, unit) {
-  if (val === undefined || val === null) return 'â';
+  if (val === undefined || val === null) return '&mdash;';
   return val + (unit || '');
 }
 
@@ -475,9 +475,9 @@ function lifecycleClass(soh) {
   return 'END_OF_LIFE';
 }
 function lifecycleLabel(soh) {
-  if (soh >= 80) return 'â Active Â· SoH â¥ 80%';
-  if (soh >= 70) return 'â ï¸ Second Life Eligible';
-  return 'ð´ End of Life';
+  if (soh >= 80) return '&#x2705; Active &middot; SoH &ge; 80%';
+  if (soh >= 70) return '&#x26A0; Second Life Eligible';
+  return '&#x1F534; End of Life';
 }
 
 function renderPassport(pub, stk, full) {
@@ -489,55 +489,55 @@ function renderPassport(pub, stk, full) {
 
   let html = '';
 
-  // ââ STAT CARDS ââ
+  // -- STAT CARDS --
   html += `<div class="stats-row">
     <div class="stat-card">
-      <div class="stat-icon">â¡</div>
+      <div class="stat-icon">&#x26A1;</div>
       <div class="stat-label">State of Charge</div>
       <div class="stat-value">${fmt(pub.state_of_charge)}%</div>
-      <div class="stat-sub">SoC Â· Real-time</div>
+      <div class="stat-sub">SoC &middot; Real-time</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">ð</div>
+      <div class="stat-icon">&#x1F50B;</div>
       <div class="stat-label">State of Health</div>
       <div class="stat-value">${fmt(pub.state_of_health)}%</div>
-      <div class="stat-sub">SoH Â· Capacity ratio</div>
+      <div class="stat-sub">SoH &middot; Capacity ratio</div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon">ð</div>
+      <div class="stat-icon">&#x1F504;</div>
       <div class="stat-label">Charge Cycles</div>
       <div class="stat-value">${fmt(pub.cycle_count)}</div>
       <div class="stat-sub">Full cycle equiv.</div>
     </div>
   </div>`;
 
-  // ââ PASSPORT CARD ââ
+  // -- PASSPORT CARD --
   html += `<div class="passport-card">
     <div class="card-header">
       <div>
         <div class="bin-label">Battery Identification Number</div>
-        <div class="bin-value">${pub.bin_id || 'â'}</div>
+        <div class="bin-value">${pub.bin_id || '&mdash;'}</div>
       </div>
       <span class="lifecycle-badge ${lcClass}">${lcLabel}</span>
     </div>
-    <div class="compliance-bar">â EU Regulation 2023/1542 Compliant Â· ESPR 2027 Ready Â· Annex XIII Attributes Recorded</div>`;
+    <div class="compliance-bar">&#x2705; EU Regulation 2023/1542 Compliant &middot; ESPR 2027 Ready &middot; Annex XIII Attributes Recorded</div>`;
 
-  // ââ SECTION: PUBLIC DATA (all tiers) ââ
-  html += `<div class="section-title">ð Public Passport Data (Tier 1 â All Users)</div>
+  // -- SECTION: PUBLIC DATA (all tiers) --
+  html += `<div class="section-title">&#x1F4CB; Public Passport Data (Tier 1 &mdash; All Users)</div>
     <div class="data-grid">
       <div class="data-item"><label>Chemistry</label><span>${fmt(pub.chemistry)}</span></div>
       <div class="data-item"><label>Manufacturer</label><span>${fmt(pub.manufacturer)}</span></div>
       <div class="data-item"><label>Capacity (kWh)</label><span>${fmt(pub.capacity_kwh)}</span></div>
       <div class="data-item"><label>Voltage (V)</label><span>${fmt(pub.voltage_v)}</span></div>
       <div class="data-item"><label>Manufacture Date</label><span>${fmt(pub.manufacture_date)}</span></div>
-      <div class="data-item"><label>Last Updated</label><span>${pub.recorded_at ? new Date(pub.recorded_at).toLocaleString() : 'â'}</span></div>
+      <div class="data-item"><label>Last Updated</label><span>${pub.recorded_at ? new Date(pub.recorded_at).toLocaleString() : '&mdash;'}</span></div>
     </div>`;
 
-  // ââ SECTION: TIER 2 OEM DATA ââ
+  // -- SECTION: TIER 2 OEM DATA --
   if (tier >= 2 && stk) {
-    html += `<div class="section-title">ð­ OEM / Stakeholder Data (Tier 2 â Authenticated)</div>
+    html += `<div class="section-title">&#x1F3ED; OEM / Stakeholder Data (Tier 2 &mdash; Authenticated)</div>
       <div class="data-grid">
-        <div class="data-item"><label>Temperature (Â°C)</label><span>${fmt(stk.temp_celsius)}</span></div>
+        <div class="data-item"><label>Temperature (&deg;C)</label><span>${fmt(stk.temp_celsius)}</span></div>
         <div class="data-item"><label>Current (A)</label><span>${fmt(stk.current_a)}</span></div>
         <div class="data-item"><label>Cell Count</label><span>${fmt(stk.cell_count)}</span></div>
         <div class="data-item"><label>Pack Weight (kg)</label><span>${fmt(stk.weight_kg)}</span></div>
@@ -546,25 +546,25 @@ function renderPassport(pub, stk, full) {
       </div>`;
   } else if (tier < 2) {
     html += `<div class="locked-section">
-      <div class="lock-icon">ð</div>
-      <p><strong>OEM / Stakeholder Data â Tier 2 Required</strong></p>
+      <div class="lock-icon">&#x1F512;</div>
+      <p><strong>OEM / Stakeholder Data &mdash; Tier 2 Required</strong></p>
       <p>Temperature, current, cell count, charge rate and supply chain data are accessible only to authenticated OEM partners via OAuth 2.0.</p>
     </div>`;
   }
 
-  // ââ SECTION: TIER 3 REGULATOR DATA ââ
+  // -- SECTION: TIER 3 REGULATOR DATA --
   if (tier >= 3 && full) {
     html += `<div class="cert-box">
-      <div class="cert-title">ðï¸ X.509 Certificate â Regulatory Authority Session</div>
+      <div class="cert-title">&#x1F3DB; X.509 Certificate &mdash; Regulatory Authority Session</div>
       <div class="cert-detail"><span>Certificate Holder:</span><span>EU Battery Regulatory Authority</span></div>
       <div class="cert-detail"><span>Issuer:</span><span>EU-CA / ENISA Root</span></div>
       <div class="cert-detail"><span>Serial:</span><span>0x2024HT65556-REG</span></div>
       <div class="cert-detail"><span>Access Level:</span><span>Full Annex XIII (77 Attributes)</span></div>
-      <div class="cert-detail"><span>Session Auth:</span><span>â Verified</span></div>
+      <div class="cert-detail"><span>Session Auth:</span><span>&#x2705; Verified</span></div>
     </div>
-    <div class="section-title">ðï¸ Full Regulatory Data (Tier 3 â X.509 Certificate)</div>
+    <div class="section-title">&#x1F3DB; Full Regulatory Data (Tier 3 &mdash; X.509 Certificate)</div>
     <div class="data-grid">
-      <div class="data-item"><label>COâ Footprint</label><span>${fmt(full.co2_footprint_kg, ' kg COâeq')}</span></div>
+      <div class="data-item"><label>CO&#x2082; Footprint</label><span>${fmt(full.co2_footprint_kg, ' kg CO&#x2082;eq')}</span></div>
       <div class="data-item"><label>Recycled Content</label><span>${fmt(full.recycled_content_pct, '%')}</span></div>
       <div class="data-item"><label>Supply Chain</label><span>${fmt(full.supply_chain_origin)}</span></div>
       <div class="data-item"><label>Certification Ref</label><span>${fmt(full.certification_ref)}</span></div>
@@ -573,28 +573,28 @@ function renderPassport(pub, stk, full) {
     </div>`;
   } else if (tier < 3) {
     html += `<div class="locked-section">
-      <div class="lock-icon">ð</div>
-      <p><strong>Regulatory Data â Tier 3 Required</strong></p>
-      <p>COâ footprint, recycled content, supply chain origin, certification references and audit trail data require X.509 certificate authentication by an EU Regulatory Authority.</p>
+      <div class="lock-icon">&#x1F510;</div>
+      <p><strong>Regulatory Data &mdash; Tier 3 Required</strong></p>
+      <p>CO&#x2082; footprint, recycled content, supply chain origin, certification references and audit trail data require X.509 certificate authentication by an EU Regulatory Authority.</p>
     </div>`;
   }
 
-  // ââ ACCESS CONTROL PILLS ââ
+  // -- ACCESS CONTROL PILLS --
   html += `<div class="access-section">
-    <div class="section-title">ð¡ï¸ Access Control (EU Art. 77)</div>
+    <div class="section-title">&#x1F6E1; Access Control (EU Art. 77)</div>
     <div class="pills-row">
-      <span class="access-pill pill-t1 ${tier>=1?'pill-active':'pill-inactive'}">ð Tier 1 Â· Public (No Auth)</span>
-      <span class="access-pill pill-t2 ${tier>=2?'pill-active':'pill-inactive'}">ð­ Tier 2 Â· OEM / OAuth 2.0</span>
-      <span class="access-pill pill-t3 ${tier>=3?'pill-active':'pill-inactive'}">ðï¸ Tier 3 Â· Regulator / X.509</span>
+      <span class="access-pill pill-t1 ${tier>=1?'pill-active':'pill-inactive'}">&#x1F310; Tier 1 &middot; Public (No Auth)</span>
+      <span class="access-pill pill-t2 ${tier>=2?'pill-active':'pill-inactive'}">&#x1F3ED; Tier 2 &middot; OEM / OAuth 2.0</span>
+      <span class="access-pill pill-t3 ${tier>=3?'pill-active':'pill-inactive'}">&#x1F3DB; Tier 3 &middot; Regulator / X.509</span>
     </div>
   </div>`;
 
-  // ââ HASH CHAIN ââ
-  html += `<div class="section-title">ð Immutability (EU Art. 10)</div>
+  // -- HASH CHAIN --
+  html += `<div class="section-title">&#x1F517; Immutability (EU Art. 10)</div>
     <div class="hash-box">
       <div class="hash-title">SHA-256 Append-Only Hash Chain</div>
       <div class="hash-value">${pub.sha256_hash || 'Hash not available'}</div>
-      <div class="hash-label">Each record includes previous hash Â· Tamper-evident Â· Append-only per EU Art. 10</div>
+      <div class="hash-label">Each record includes previous hash &middot; Tamper-evident &middot; Append-only per EU Art. 10</div>
     </div>`;
 
   html += '</div>'; // close passport-card
