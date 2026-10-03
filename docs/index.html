@@ -1,206 +1,606 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Digital Battery Passport | EU ESPR 2027</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; min-height: 100vh; }
-    .header { background: linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #01579b 100%); color: white; padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .eu-flag { font-size: 2rem; }
-    .header-title h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: 0.5px; }
-    .header-title p { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
-    .regulation-badge { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; padding: 6px 14px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px; }
-    .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
-    .search-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
-    .search-card h2 { font-size: 1.1rem; color: #1a237e; margin-bottom: 6px; font-weight: 700; }
-    .search-card p { font-size: 0.82rem; color: #666; margin-bottom: 18px; }
-    .search-row { display: flex; gap: 10px; }
-    .search-input { flex: 1; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
-    .search-input:focus { border-color: #1a237e; }
-    .search-btn { background: #1a237e; color: white; border: none; border-radius: 8px; padding: 12px 24px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
-    .search-btn:hover { background: #0d47a1; }
-    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
-    .info-card { background: white; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; }
-    .info-card .icon { font-size: 1.6rem; margin-bottom: 8px; }
-    .info-card .label { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .info-card .value { font-size: 1.5rem; font-weight: 700; color: #1a237e; }
-    .info-card .sub { font-size: 0.72rem; color: #aaa; margin-top: 2px; }
-    .passport-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
-    .passport-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-    .passport-id { font-size: 0.78rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .passport-bin { font-size: 1.3rem; font-weight: 700; color: #1a237e; font-family: monospace; }
-    .lifecycle-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.3px; }
-    .badge-active { background: #e8f5e9; color: #2e7d32; border: 1.5px solid #81c784; }
-    .badge-second-life { background: #fff8e1; color: #f57f17; border: 1.5px solid #ffd54f; }
-    .badge-eol { background: #fce4ec; color: #c62828; border: 1.5px solid #ef9a9a; }
-    .section-title { font-size: 0.85rem; font-weight: 700; color: #333; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #f0f2f5; }
-    .data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
-    .data-item { background: #f8f9fa; border-radius: 8px; padding: 12px 14px; }
-    .data-item .key { font-size: 0.72rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
-    .data-item .val { font-size: 0.9rem; color: #222; font-weight: 600; }
-    .access-tiers { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-    .tier-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 16px; font-size: 0.75rem; font-weight: 600; }
-    .tier-1 { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
-    .tier-2 { background: #f3e5f5; color: #6a1b9a; border: 1px solid #ce93d8; }
-    .tier-3 { background: #fff3e0; color: #e65100; border: 1px solid #ffcc02; }
-    .hash-section { background: #1a1a2e; border-radius: 8px; padding: 14px 16px; margin-top: 16px; }
-    .hash-title { font-size: 0.72rem; color: #7986cb; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .hash-value { font-family: monospace; font-size: 0.72rem; color: #80cbc4; word-break: break-all; line-height: 1.6; }
-    .compliance-bar { display: flex; align-items: center; gap: 10px; background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; }
-    .compliance-icon { font-size: 1.2rem; }
-    .compliance-text { font-size: 0.78rem; color: #2e7d32; font-weight: 600; }
-    .error-card { background: #fff3f3; border: 1.5px solid #ffcdd2; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0; }
-    .error-card .error-icon { font-size: 2rem; margin-bottom: 8px; }
-    .error-card p { color: #c62828; font-size: 0.88rem; }
-    .loading { text-align: center; padding: 40px; color: #888; }
-    .spinner { display: inline-block; width: 32px; height: 32px; border: 3px solid #e0e0e0; border-top-color: #1a237e; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .footer { text-align: center; padding: 20px; color: #aaa; font-size: 0.72rem; }
-    @media (max-width: 600px) { .info-grid { grid-template-columns: repeat(2, 1fr); } .data-grid { grid-template-columns: 1fr; } .search-row { flex-direction: column; } }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Digital Battery Passport | EU ESPR 2027</title>
+<style>
+  :root {
+    --navy: #0d2b5e;
+    --blue: #1a4494;
+    --light-blue: #e8f0fb;
+    --green: #1a7a4a;
+    --green-bg: #e6f4ed;
+    --amber: #b45309;
+    --amber-bg: #fef3cd;
+    --red: #991b1b;
+    --red-bg: #fee2e2;
+    --purple: #5b21b6;
+    --purple-bg: #ede9fe;
+    --gray: #6b7280;
+    --border: #d1d5db;
+    --bg: #f3f6fb;
+    --white: #ffffff;
+    --text: #111827;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ââ HEADER ââ */
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    color: white; padding: 14px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .eu-flag { font-size: 2rem; }
+  .header-title h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.3px; }
+  .header-title p { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .reg-badge {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px; padding: 4px 14px; font-size: 0.72rem; font-weight: 600;
+  }
+  .user-pill {
+    display: none; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px; padding: 5px 14px; font-size: 0.78rem;
+  }
+  .user-pill.visible { display: flex; }
+  .tier-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .logout-btn {
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4);
+    color: white; padding: 5px 12px; border-radius: 6px; font-size: 0.75rem;
+    cursor: pointer; display: none;
+  }
+  .logout-btn.visible { display: block; }
+  .logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+  /* ââ LOGIN SCREEN ââ */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: calc(100vh - 60px); padding: 20px;
+  }
+  .login-card {
+    background: white; border-radius: 16px; padding: 40px 36px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10); width: 100%; max-width: 460px;
+  }
+  .login-card h2 { font-size: 1.3rem; color: var(--navy); margin-bottom: 6px; }
+  .login-card .subtitle { color: var(--gray); font-size: 0.85rem; margin-bottom: 28px; }
+  .form-label { font-size: 0.8rem; font-weight: 600; color: var(--text); margin-bottom: 5px; display: block; }
+  .form-input {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 0.9rem; margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { outline: none; border-color: var(--blue); }
+  .login-btn {
+    width: 100%; padding: 12px; background: var(--blue); color: white;
+    border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .login-btn:hover { background: var(--navy); }
+  .login-error {
+    background: var(--red-bg); color: var(--red); border: 1px solid #fca5a5;
+    border-radius: 8px; padding: 10px 14px; font-size: 0.83rem;
+    margin-bottom: 16px; display: none;
+  }
+  .demo-creds {
+    margin-top: 28px; border-top: 1px solid var(--border); padding-top: 20px;
+  }
+  .demo-creds p { font-size: 0.78rem; color: var(--gray); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cred-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 8px; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .cred-row:hover { border-color: var(--blue); }
+  .cred-info { display: flex; flex-direction: column; gap: 2px; }
+  .cred-email { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+  .cred-pass { font-size: 0.75rem; color: var(--gray); }
+  .tier-badge {
+    font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 12px;
+    white-space: nowrap;
+  }
+  .t1 { background: var(--green-bg); color: var(--green); }
+  .t2 { background: var(--amber-bg); color: var(--amber); }
+  .t3 { background: var(--purple-bg); color: var(--purple); }
+
+  /* ââ PORTAL SCREEN ââ */
+  #portal-screen { display: none; padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+
+  /* Tier Banner */
+  .tier-banner {
+    border-radius: 10px; padding: 12px 18px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px; font-size: 0.85rem; font-weight: 600;
+  }
+  .tier-banner.t1 { background: var(--green-bg); color: var(--green); border: 1px solid #86efac; }
+  .tier-banner.t2 { background: var(--amber-bg); color: var(--amber); border: 1px solid #fcd34d; }
+  .tier-banner.t3 { background: var(--purple-bg); color: var(--purple); border: 1px solid #c4b5fd; }
+  .tier-banner-icon { font-size: 1.1rem; }
+  .tier-banner-text { flex: 1; }
+  .tier-banner-sub { font-weight: 400; font-size: 0.78rem; opacity: 0.85; }
+
+  /* Search */
+  .search-card {
+    background: white; border-radius: 12px; padding: 20px 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 20px;
+  }
+  .search-card h3 { font-size: 0.95rem; color: var(--navy); margin-bottom: 4px; }
+  .search-card p { font-size: 0.78rem; color: var(--gray); margin-bottom: 14px; }
+  .search-row { display: flex; gap: 10px; }
+  .search-input {
+    flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 0.9rem;
+  }
+  .search-input:focus { outline: none; border-color: var(--blue); }
+  .search-btn {
+    padding: 10px 20px; background: var(--blue); color: white;
+    border: none; border-radius: 8px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .search-btn:hover { background: var(--navy); }
+
+  /* Results */
+  #result { }
+  .spinner { text-align: center; padding: 30px; color: var(--gray); font-size: 0.9rem; }
+  .spinner::before { content: 'â³ '; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  .stat-card {
+    background: white; border-radius: 10px; padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05); text-align: center;
+  }
+  .stat-icon { font-size: 1.5rem; margin-bottom: 4px; }
+  .stat-label { font-size: 0.68rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-value { font-size: 1.6rem; font-weight: 700; color: var(--navy); }
+  .stat-sub { font-size: 0.7rem; color: var(--gray); margin-top: 2px; }
+
+  /* Main card */
+  .passport-card {
+    background: white; border-radius: 12px; padding: 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+  }
+  .bin-label { font-size: 0.7rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; }
+  .bin-value { font-size: 1.15rem; font-weight: 700; color: var(--navy); margin-top: 2px; }
+  .lifecycle-badge {
+    padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+  }
+  .ACTIVE { background: var(--green-bg); color: var(--green); }
+  .SECOND_LIFE_ELIGIBLE { background: var(--amber-bg); color: var(--amber); }
+  .END_OF_LIFE { background: var(--red-bg); color: var(--red); }
+
+  .compliance-bar {
+    background: var(--green-bg); border: 1px solid #86efac; border-radius: 8px;
+    padding: 10px 14px; display: flex; align-items: center; gap: 8px;
+    font-size: 0.82rem; color: var(--green); font-weight: 600; margin-bottom: 18px;
+  }
+
+  .section-title {
+    font-size: 0.72rem; font-weight: 700; color: var(--gray);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .data-item { }
+  .data-item label { font-size: 0.68rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+  .data-item span { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  .data-item span.locked { color: #d1d5db; font-style: italic; font-weight: 400; }
+
+  /* Lock overlay for restricted fields */
+  .locked-section {
+    background: #f9fafb; border: 1.5px dashed var(--border); border-radius: 10px;
+    padding: 18px; text-align: center; margin-bottom: 20px;
+  }
+  .locked-section .lock-icon { font-size: 1.8rem; margin-bottom: 6px; }
+  .locked-section p { font-size: 0.83rem; color: var(--gray); }
+  .locked-section strong { color: var(--text); }
+
+  /* Access control pills */
+  .access-section { margin-bottom: 20px; }
+  .pills-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .access-pill {
+    padding: 5px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    border: 1.5px solid;
+  }
+  .pill-active { }
+  .pill-inactive { opacity: 0.4; }
+  .pill-t1 { background: var(--green-bg); color: var(--green); border-color: #86efac; }
+  .pill-t2 { background: var(--amber-bg); color: var(--amber); border-color: #fcd34d; }
+  .pill-t3 { background: var(--purple-bg); color: var(--purple); border-color: #c4b5fd; }
+
+  /* Hash chain */
+  .hash-box {
+    background: #0f172a; border-radius: 10px; padding: 16px;
+    font-family: 'Courier New', monospace;
+  }
+  .hash-title { color: #94a3b8; font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .hash-value { color: #34d399; font-size: 0.8rem; word-break: break-all; }
+  .hash-label { color: #64748b; font-size: 0.68rem; margin-top: 4px; }
+
+  /* Tier 2 extra fields */
+  .tier2-section { margin-bottom: 20px; }
+  .extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Tier 3 extra */
+  .cert-box {
+    background: var(--purple-bg); border: 1.5px solid #c4b5fd; border-radius: 10px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .cert-box .cert-title { font-size: 0.75rem; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .cert-detail { font-size: 0.8rem; color: var(--text); display: flex; gap: 6px; margin-bottom: 4px; }
+  .cert-detail span:first-child { color: var(--gray); width: 130px; flex-shrink: 0; }
+
+  @media (max-width: 480px) {
+    .stats-row { grid-template-columns: 1fr; }
+    .data-grid { grid-template-columns: 1fr; }
+    .extra-grid { grid-template-columns: 1fr; }
+    .search-row { flex-direction: column; }
+    .login-card { padding: 28px 20px; }
+  }
+</style>
 </head>
 <body>
 
+<!-- ââ HEADER ââââââââââââââââââââââââââââââââââââââââââââââ -->
 <div class="header">
   <div class="header-left">
-    <span class="eu-flag">🇪🇺</span>
+    <span class="eu-flag">ðªðº</span>
     <div class="header-title">
       <h1>Digital Battery Passport</h1>
-      <p>EU Regulation 2023/1542 · ESPR 2027 Compliance Portal</p>
+      <p>EU Regulation 2023/1542 Â· ESPR 2027 Compliance Portal</p>
     </div>
   </div>
-  <div class="regulation-badge">Art. 77 · Annex XIII · 77 Attributes</div>
+  <div class="header-right">
+    <div class="reg-badge">Art. 77 Â· Annex XIII Â· 77 Attributes</div>
+    <div class="user-pill" id="userPill">
+      <span class="tier-dot" id="tierDot"></span>
+      <span id="userLabel"></span>
+    </div>
+    <button class="logout-btn" id="logoutBtn" onclick="logout()">Logout</button>
+  </div>
 </div>
 
-<div class="container">
+<!-- ââ LOGIN SCREEN ââââââââââââââââââââââââââââââââââââââââââ -->
+<div id="login-screen">
+  <div class="login-card">
+    <h2>ð Secure Access Portal</h2>
+    <p class="subtitle">EU Regulation 2023/1542 â Three-Tier Access Control (Art. 77)</p>
 
+    <div class="login-error" id="loginError">Invalid email or password. Please try again.</div>
+
+    <label class="form-label">Email Address</label>
+    <input class="form-input" type="email" id="emailInput" placeholder="Enter your email"/>
+
+    <label class="form-label">Password</label>
+    <input class="form-input" type="password" id="passInput" placeholder="Enter your password"
+           onkeydown="if(event.key==='Enter') doLogin()"/>
+
+    <button class="login-btn" onclick="doLogin()">Sign In â</button>
+
+    <!-- Demo credentials quick-fill -->
+    <div class="demo-creds">
+      <p>Demo Accounts â Click to auto-fill</p>
+
+      <div class="cred-row" onclick="fillCreds('public@dbp.eu','Public@123')">
+        <div class="cred-info">
+          <span class="cred-email">public@dbp.eu</span>
+          <span class="cred-pass">Password: Public@123</span>
+        </div>
+        <span class="tier-badge t1">Tier 1 Â· Public</span>
+      </div>
+
+      <div class="cred-row" onclick="fillCreds('oem@dbp.eu','OEM@2024')">
+        <div class="cred-info">
+          <span class="cred-email">oem@dbp.eu</span>
+          <span class="cred-pass">Password: OEM@2024</span>
+        </div>
+        <span class="tier-badge t2">Tier 2 Â· OEM</span>
+      </div>
+
+      <div class="cred-row" onclick="fillCreds('regulator@eu.gov','Regulator@EU')">
+        <div class="cred-info">
+          <span class="cred-email">regulator@eu.gov</span>
+          <span class="cred-pass">Password: Regulator@EU</span>
+        </div>
+        <span class="tier-badge t3">Tier 3 Â· Regulator</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ââ PORTAL SCREEN ââââââââââââââââââââââââââââââââââââââââââ -->
+<div id="portal-screen">
+
+  <!-- Tier banner -->
+  <div class="tier-banner" id="tierBanner">
+    <span class="tier-banner-icon" id="bannerIcon"></span>
+    <div class="tier-banner-text">
+      <div id="bannerTitle"></div>
+      <div class="tier-banner-sub" id="bannerSub"></div>
+    </div>
+  </div>
+
+  <!-- Search -->
   <div class="search-card">
-    <h2>🔍 Battery Passport Lookup</h2>
-    <p>Enter a Battery Identification Number (BIN) to retrieve its Digital Passport. Public data is accessible without authentication per EU Regulation Art. 77(3).</p>
+    <h3>ð Battery Passport Lookup</h3>
+    <p>Enter a Battery Identification Number (BIN) to retrieve its Digital Passport</p>
     <div class="search-row">
-      <input type="text" id="binInput" class="search-input" placeholder="e.g. DBP-2024HT65556-001" value="DBP-2024HT65556-001"/>
+      <input class="search-input" type="text" id="binInput" value="DBP-2024HT65556-001"/>
       <button class="search-btn" onclick="lookupBattery()">Look Up Passport</button>
     </div>
   </div>
 
   <div id="result"></div>
-
-</div>
-
-<div class="footer">
-  Digital Battery Passport System · EU Regulation 2023/1542 (ESPR 2027) · Mandatory Feb 2027<br/>
-  Powered by SHA-256 Append-Only Hash Chain · Three-Tier Access Control
 </div>
 
 <script>
-  const API_BASE = window.location.hostname === 'localhost'
-    ? 'http://localhost:8000'
-    : 'https://dbp-cloud.onrender.com';
-
-  function getLifecycleBadge(status) {
-    const map = {
-      'ACTIVE': { cls: 'badge-active', icon: '✅', label: 'Active · SoH ≥ 80%' },
-      'SECOND_LIFE_ELIGIBLE': { cls: 'badge-second-life', icon: '🔄', label: 'Second Life · 70–80%' },
-      'END_OF_LIFE': { cls: 'badge-eol', icon: '⚠️', label: 'End of Life · <70%' }
-    };
-    const b = map[status] || { cls: 'badge-active', icon: '❓', label: status };
-    return `<span class="lifecycle-badge ${b.cls}">${b.icon} ${b.label}</span>`;
+// ââ USER DATABASE âââââââââââââââââââââââââââââââââââââââââââââ
+const USERS = {
+  'public@dbp.eu': {
+    password: 'Public@123',
+    tier: 1,
+    name: 'Public User',
+    role: 'Tier 1 Â· Public Access (No Authentication)',
+    dotColor: '#16a34a'
+  },
+  'oem@dbp.eu': {
+    password: 'OEM@2024',
+    tier: 2,
+    name: 'OEM Engineer',
+    role: 'Tier 2 Â· OEM / OAuth 2.0',
+    dotColor: '#d97706'
+  },
+  'regulator@eu.gov': {
+    password: 'Regulator@EU',
+    tier: 3,
+    name: 'EU Regulator',
+    role: 'Tier 3 Â· Regulator / X.509',
+    dotColor: '#7c3aed'
   }
+};
 
-  async function lookupBattery() {
-    const bin = document.getElementById('binInput').value.trim();
-    if (!bin) return;
-    const result = document.getElementById('result');
-    result.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:12px">Fetching passport data…</p></div>';
+const API_BASE = 'https://dbp-cloud.onrender.com';
+let currentUser = null;
 
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/public`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `HTTP ${res.status}`);
-      }
-      const d = await res.json();
+// ââ LOGIN âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+function fillCreds(email, pass) {
+  document.getElementById('emailInput').value = email;
+  document.getElementById('passInput').value = pass;
+  document.getElementById('loginError').style.display = 'none';
+}
 
-      const soh = d.state_of_health_pct ?? '—';
-      const soc = d.state_of_charge_pct ?? '—';
-      const cycles = d.cycle_count ?? '—';
+function doLogin() {
+  const email = document.getElementById('emailInput').value.trim().toLowerCase();
+  const pass  = document.getElementById('passInput').value;
+  const user  = USERS[email];
+  if (!user || user.password !== pass) {
+    document.getElementById('loginError').style.display = 'block';
+    return;
+  }
+  currentUser = { email, ...user };
+  showPortal();
+}
 
-      result.innerHTML = `
-        <div class="info-grid">
-          <div class="info-card">
-            <div class="icon">⚡</div>
-            <div class="label">State of Charge</div>
-            <div class="value">${soc}<span style="font-size:1rem">%</span></div>
-            <div class="sub">SoC · Real-time</div>
-          </div>
-          <div class="info-card">
-            <div class="icon">🔋</div>
-            <div class="label">State of Health</div>
-            <div class="value">${soh}<span style="font-size:1rem">%</span></div>
-            <div class="sub">SoH · Capacity ratio</div>
-          </div>
-          <div class="info-card">
-            <div class="icon">🔄</div>
-            <div class="label">Charge Cycles</div>
-            <div class="value">${cycles}</div>
-            <div class="sub">Full cycle equiv.</div>
-          </div>
-        </div>
+function logout() {
+  currentUser = null;
+  document.getElementById('portal-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display  = 'flex';
+  document.getElementById('result').innerHTML = '';
+  document.getElementById('userPill').classList.remove('visible');
+  document.getElementById('logoutBtn').classList.remove('visible');
+  document.getElementById('emailInput').value = '';
+  document.getElementById('passInput').value  = '';
+}
 
-        <div class="passport-card">
-          <div class="passport-header">
-            <div>
-              <div class="passport-id">Battery Identification Number</div>
-              <div class="passport-bin">${d.bin_id}</div>
-            </div>
-            ${getLifecycleBadge(d.lifecycle_status)}
-          </div>
+function showPortal() {
+  document.getElementById('login-screen').style.display  = 'none';
+  document.getElementById('portal-screen').style.display = 'block';
 
-          <div class="compliance-bar">
-            <span class="compliance-icon">✅</span>
-            <span class="compliance-text">EU Regulation 2023/1542 Compliant · ESPR 2027 Ready · Annex XIII Attributes Recorded</span>
-          </div>
+  // Header pill
+  const pill = document.getElementById('userPill');
+  pill.classList.add('visible');
+  document.getElementById('tierDot').style.background = currentUser.dotColor;
+  document.getElementById('userLabel').textContent = currentUser.name + ' (' + currentUser.role.split('Â·')[0].trim() + ')';
+  document.getElementById('logoutBtn').classList.add('visible');
 
-          <div class="section-title">📋 Passport Data</div>
-          <div class="data-grid">
-            <div class="data-item"><div class="key">Chemistry</div><div class="val">${d.chemistry || '—'}</div></div>
-            <div class="data-item"><div class="key">Manufacturer</div><div class="val">${d.manufacturer || '—'}</div></div>
-            <div class="data-item"><div class="key">Capacity (kWh)</div><div class="val">${d.capacity_kwh ?? '—'}</div></div>
-            <div class="data-item"><div class="key">Voltage (V)</div><div class="val">${d.voltage_nominal_v ?? '—'}</div></div>
-            <div class="data-item"><div class="key">Manufacture Date</div><div class="val">${d.manufacture_date || '—'}</div></div>
-            <div class="data-item"><div class="key">Last Updated</div><div class="val">${d.recorded_at ? new Date(d.recorded_at).toLocaleDateString() : '—'}</div></div>
-          </div>
+  // Tier banner
+  const banner = document.getElementById('tierBanner');
+  const configs = {
+    1: { cls:'t1', icon:'ð', title:'Tier 1 â Public Access', sub:'Read-only. Basic passport fields visible. No authentication required per EU Regulation Art. 77(3).' },
+    2: { cls:'t2', icon:'ð­', title:'Tier 2 â OEM / Stakeholder Access', sub:'Extended fields visible. Authenticated via OAuth 2.0. Includes telemetry, supply chain and technical specifications.' },
+    3: { cls:'t3', icon:'ðï¸', title:'Tier 3 â Regulatory Authority Access', sub:'Full 77-attribute Annex XIII disclosure. Authenticated via X.509 Certificate. Includes all compliance and audit data.' }
+  };
+  const c = configs[currentUser.tier];
+  banner.className = 'tier-banner ' + c.cls;
+  document.getElementById('bannerIcon').textContent  = c.icon;
+  document.getElementById('bannerTitle').textContent = c.title;
+  document.getElementById('bannerSub').textContent   = c.sub;
 
-          <div class="section-title">🔐 Access Control (EU Art. 77)</div>
-          <div class="access-tiers">
-            <span class="tier-pill tier-1">🌐 Tier 1 · Public (No Auth)</span>
-            <span class="tier-pill tier-2">🏭 Tier 2 · OEM / OAuth 2.0</span>
-            <span class="tier-pill tier-3">🏛️ Tier 3 · Regulator / X.509</span>
-          </div>
+  lookupBattery();
+}
 
-          <div class="section-title">⛓️ Immutability (EU Art. 10)</div>
-          <div class="hash-section">
-            <div class="hash-title">SHA-256 Append-Only Hash Chain</div>
-            <div class="hash-value">${d.sha256_hash || 'Hash not available'}</div>
-          </div>
-        </div>
-      `;
-    } catch (e) {
-      result.innerHTML = `
-        <div class="error-card">
-          <div class="error-icon">⚠️</div>
-          <p><strong>Passport not found:</strong> ${e.message}</p>
-          <p style="margin-top:8px;color:#888;font-size:0.78rem">Ensure the BIN is correct and the API is online.</p>
-        </div>
-      `;
+// ââ LOOKUP ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+async function lookupBattery() {
+  const bin = document.getElementById('binInput').value.trim();
+  if (!bin) return;
+  document.getElementById('result').innerHTML = '<div class="spinner">Fetching passport dataâ¦</div>';
+
+  try {
+    // Always fetch public data
+    const pubRes  = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/public`);
+    if (!pubRes.ok) throw new Error('Battery not found');
+    const pubData = await pubRes.json();
+
+    // Tier 2: fetch stakeholder data
+    let stkData = null;
+    if (currentUser.tier >= 2) {
+      const stkRes = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/stakeholder`, {
+        headers: { 'Authorization': 'Bearer vcutoken_2024ht65556' }
+      });
+      if (stkRes.ok) stkData = await stkRes.json();
     }
+
+    // Tier 3: fetch full data
+    let fullData = null;
+    if (currentUser.tier >= 3) {
+      const fullRes = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/full`, {
+        headers: { 'Authorization': 'Bearer vcutoken_2024ht65556', 'X-Client-Cert': 'REGULATOR-X509-DEMO' }
+      });
+      if (fullRes.ok) fullData = await fullRes.json();
+    }
+
+    renderPassport(pubData, stkData, fullData);
+  } catch (e) {
+    document.getElementById('result').innerHTML =
+      `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:16px;color:#991b1b;font-size:0.85rem;">
+        â ${e.message || 'Error fetching passport data'}
+      </div>`;
+  }
+}
+
+function fmt(val, unit) {
+  if (val === undefined || val === null) return 'â';
+  return val + (unit || '');
+}
+
+function lifecycleClass(soh) {
+  if (soh >= 80) return 'ACTIVE';
+  if (soh >= 70) return 'SECOND_LIFE_ELIGIBLE';
+  return 'END_OF_LIFE';
+}
+function lifecycleLabel(soh) {
+  if (soh >= 80) return 'â Active Â· SoH â¥ 80%';
+  if (soh >= 70) return 'â ï¸ Second Life Eligible';
+  return 'ð´ End of Life';
+}
+
+function renderPassport(pub, stk, full) {
+  const soh      = pub.state_of_health ?? 0;
+  const lcClass  = lifecycleClass(soh);
+  const lcLabel  = lifecycleLabel(soh);
+  const tier     = currentUser.tier;
+  const data     = full || stk || pub;
+
+  let html = '';
+
+  // ââ STAT CARDS ââ
+  html += `<div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon">â¡</div>
+      <div class="stat-label">State of Charge</div>
+      <div class="stat-value">${fmt(pub.state_of_charge)}%</div>
+      <div class="stat-sub">SoC Â· Real-time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">ð</div>
+      <div class="stat-label">State of Health</div>
+      <div class="stat-value">${fmt(pub.state_of_health)}%</div>
+      <div class="stat-sub">SoH Â· Capacity ratio</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">ð</div>
+      <div class="stat-label">Charge Cycles</div>
+      <div class="stat-value">${fmt(pub.cycle_count)}</div>
+      <div class="stat-sub">Full cycle equiv.</div>
+    </div>
+  </div>`;
+
+  // ââ PASSPORT CARD ââ
+  html += `<div class="passport-card">
+    <div class="card-header">
+      <div>
+        <div class="bin-label">Battery Identification Number</div>
+        <div class="bin-value">${pub.bin_id || 'â'}</div>
+      </div>
+      <span class="lifecycle-badge ${lcClass}">${lcLabel}</span>
+    </div>
+    <div class="compliance-bar">â EU Regulation 2023/1542 Compliant Â· ESPR 2027 Ready Â· Annex XIII Attributes Recorded</div>`;
+
+  // ââ SECTION: PUBLIC DATA (all tiers) ââ
+  html += `<div class="section-title">ð Public Passport Data (Tier 1 â All Users)</div>
+    <div class="data-grid">
+      <div class="data-item"><label>Chemistry</label><span>${fmt(pub.chemistry)}</span></div>
+      <div class="data-item"><label>Manufacturer</label><span>${fmt(pub.manufacturer)}</span></div>
+      <div class="data-item"><label>Capacity (kWh)</label><span>${fmt(pub.capacity_kwh)}</span></div>
+      <div class="data-item"><label>Voltage (V)</label><span>${fmt(pub.voltage_v)}</span></div>
+      <div class="data-item"><label>Manufacture Date</label><span>${fmt(pub.manufacture_date)}</span></div>
+      <div class="data-item"><label>Last Updated</label><span>${pub.recorded_at ? new Date(pub.recorded_at).toLocaleString() : 'â'}</span></div>
+    </div>`;
+
+  // ââ SECTION: TIER 2 OEM DATA ââ
+  if (tier >= 2 && stk) {
+    html += `<div class="section-title">ð­ OEM / Stakeholder Data (Tier 2 â Authenticated)</div>
+      <div class="data-grid">
+        <div class="data-item"><label>Temperature (Â°C)</label><span>${fmt(stk.temp_celsius)}</span></div>
+        <div class="data-item"><label>Current (A)</label><span>${fmt(stk.current_a)}</span></div>
+        <div class="data-item"><label>Cell Count</label><span>${fmt(stk.cell_count)}</span></div>
+        <div class="data-item"><label>Pack Weight (kg)</label><span>${fmt(stk.weight_kg)}</span></div>
+        <div class="data-item"><label>Charge Rate (kW)</label><span>${fmt(stk.max_charge_rate_kw)}</span></div>
+        <div class="data-item"><label>Depth of Discharge</label><span>${fmt(stk.depth_of_discharge_pct, '%')}</span></div>
+      </div>`;
+  } else if (tier < 2) {
+    html += `<div class="locked-section">
+      <div class="lock-icon">ð</div>
+      <p><strong>OEM / Stakeholder Data â Tier 2 Required</strong></p>
+      <p>Temperature, current, cell count, charge rate and supply chain data are accessible only to authenticated OEM partners via OAuth 2.0.</p>
+    </div>`;
   }
 
-  window.onload = () => lookupBattery();
-</script>
+  // ââ SECTION: TIER 3 REGULATOR DATA ââ
+  if (tier >= 3 && full) {
+    html += `<div class="cert-box">
+      <div class="cert-title">ðï¸ X.509 Certificate â Regulatory Authority Session</div>
+      <div class="cert-detail"><span>Certificate Holder:</span><span>EU Battery Regulatory Authority</span></div>
+      <div class="cert-detail"><span>Issuer:</span><span>EU-CA / ENISA Root</span></div>
+      <div class="cert-detail"><span>Serial:</span><span>0x2024HT65556-REG</span></div>
+      <div class="cert-detail"><span>Access Level:</span><span>Full Annex XIII (77 Attributes)</span></div>
+      <div class="cert-detail"><span>Session Auth:</span><span>â Verified</span></div>
+    </div>
+    <div class="section-title">ðï¸ Full Regulatory Data (Tier 3 â X.509 Certificate)</div>
+    <div class="data-grid">
+      <div class="data-item"><label>COâ Footprint</label><span>${fmt(full.co2_footprint_kg, ' kg COâeq')}</span></div>
+      <div class="data-item"><label>Recycled Content</label><span>${fmt(full.recycled_content_pct, '%')}</span></div>
+      <div class="data-item"><label>Supply Chain</label><span>${fmt(full.supply_chain_origin)}</span></div>
+      <div class="data-item"><label>Certification Ref</label><span>${fmt(full.certification_ref)}</span></div>
+      <div class="data-item"><label>End-of-Life Plan</label><span>${fmt(full.eol_plan)}</span></div>
+      <div class="data-item"><label>Audit Trail</label><span>${fmt(full.audit_trail_ref)}</span></div>
+    </div>`;
+  } else if (tier < 3) {
+    html += `<div class="locked-section">
+      <div class="lock-icon">ð</div>
+      <p><strong>Regulatory Data â Tier 3 Required</strong></p>
+      <p>COâ footprint, recycled content, supply chain origin, certification references and audit trail data require X.509 certificate authentication by an EU Regulatory Authority.</p>
+    </div>`;
+  }
 
+  // ââ ACCESS CONTROL PILLS ââ
+  html += `<div class="access-section">
+    <div class="section-title">ð¡ï¸ Access Control (EU Art. 77)</div>
+    <div class="pills-row">
+      <span class="access-pill pill-t1 ${tier>=1?'pill-active':'pill-inactive'}">ð Tier 1 Â· Public (No Auth)</span>
+      <span class="access-pill pill-t2 ${tier>=2?'pill-active':'pill-inactive'}">ð­ Tier 2 Â· OEM / OAuth 2.0</span>
+      <span class="access-pill pill-t3 ${tier>=3?'pill-active':'pill-inactive'}">ðï¸ Tier 3 Â· Regulator / X.509</span>
+    </div>
+  </div>`;
+
+  // ââ HASH CHAIN ââ
+  html += `<div class="section-title">ð Immutability (EU Art. 10)</div>
+    <div class="hash-box">
+      <div class="hash-title">SHA-256 Append-Only Hash Chain</div>
+      <div class="hash-value">${pub.sha256_hash || 'Hash not available'}</div>
+      <div class="hash-label">Each record includes previous hash Â· Tamper-evident Â· Append-only per EU Art. 10</div>
+    </div>`;
+
+  html += '</div>'; // close passport-card
+
+  document.getElementById('result').innerHTML = html;
+}
+</script>
 </body>
 </html>
