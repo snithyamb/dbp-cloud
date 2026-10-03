@@ -450,7 +450,7 @@ async function lookupBattery() {
     let fullData = null;
     if (currentUser.tier >= 3) {
       const fullRes = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/full`, {
-        headers: { 'Authorization': 'Bearer vcutoken_2024ht65556', 'X-Client-Cert': 'REGULATOR-X509-DEMO' }
+        headers: { 'x-api-key': 'REGULATOR-TIER3-2024HT65556' }
       });
       if (fullRes.ok) fullData = await fullRes.json();
     }
