@@ -152,6 +152,12 @@ async def get_full_passport(request):
         "weight_kg": static.get("weight_kg"),
         "max_charge_rate_kw": static.get("max_charge_rate_kw"),
         "depth_of_discharge_pct": static.get("depth_of_discharge_pct"),
+        "co2_footprint_kg": static.get("co2_footprint_kg"),
+        "recycled_content_pct": static.get("recycled_content_pct"),
+        "supply_chain_origin": static.get("supply_chain_origin"),
+        "certification_ref": static.get("certification_ref"),
+        "eol_plan": static.get("eol_plan"),
+        "audit_trail_ref": static.get("audit_trail_ref"),
         "raw_telemetry": telemetry,
         "access_tier": "REGULATOR",
     })
