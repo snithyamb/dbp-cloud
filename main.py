@@ -1,4 +1,6 @@
 import os
+import hashlib
+import json
 import httpx
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
@@ -31,6 +33,14 @@ def supabase_insert(table, data):
         r = client.post(url, headers={**HEADERS, "Prefer": "return=representation"}, json=data, timeout=10)
         r.raise_for_status()
         return r.json()
+
+
+def compute_record_hash(record):
+    """SHA-256 hash of a record's key fields, deterministically sorted."""
+    fields = {k: record.get(k) for k in sorted([
+        "bin", "timestamp", "soc_pct", "soh_pct", "cycle_count", "prev_hash"
+    ])}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 
 
 async def get_public_info(request):
@@ -102,12 +112,12 @@ async def get_stakeholder_info(request):
         "capacity_kwh": static.get("capacity_kwh"),
         "voltage_v": static.get("voltage_v"),
         "manufacture_date": static.get("manufacture_date"),
-        "temp_celsius": static.get("temp_celsius"),
-        "current_a": static.get("current_a"),
+        "temp_celsius": latest.get("temp_celsius"),
+        "current_a": latest.get("current_a"),
         "cell_count": static.get("cell_count"),
         "weight_kg": static.get("weight_kg"),
         "max_charge_rate_kw": static.get("max_charge_rate_kw"),
-        "depth_of_discharge_pct": static.get("depth_of_discharge_pct"),
+        "depth_of_discharge_pct": latest.get("depth_of_discharge_pct"),
         "access_tier": "STAKEHOLDER",
     })
 
@@ -134,6 +144,10 @@ async def get_full_passport(request):
     })
     static = passport[0] if passport else {}
 
+    # Compute latest record hash for the chain tip
+    latest_hash = compute_record_hash(latest)
+    genesis_hash = telemetry[-1].get("prev_hash") if telemetry else None
+
     return JSONResponse({
         "bin_id": latest["bin"],
         "recorded_at": latest["timestamp"],
@@ -146,18 +160,21 @@ async def get_full_passport(request):
         "capacity_kwh": static.get("capacity_kwh"),
         "voltage_v": static.get("voltage_v"),
         "manufacture_date": static.get("manufacture_date"),
-        "temp_celsius": static.get("temp_celsius"),
-        "current_a": static.get("current_a"),
+        "temp_celsius": latest.get("temp_celsius"),
+        "current_a": latest.get("current_a"),
         "cell_count": static.get("cell_count"),
         "weight_kg": static.get("weight_kg"),
         "max_charge_rate_kw": static.get("max_charge_rate_kw"),
-        "depth_of_discharge_pct": static.get("depth_of_discharge_pct"),
+        "depth_of_discharge_pct": latest.get("depth_of_discharge_pct"),
         "co2_footprint_kg": static.get("co2_footprint_kg"),
         "recycled_content_pct": static.get("recycled_content_pct"),
         "supply_chain_origin": static.get("supply_chain_origin"),
         "certification_ref": static.get("certification_ref"),
         "eol_plan": static.get("eol_plan"),
         "audit_trail_ref": static.get("audit_trail_ref"),
+        "hash_chain_depth": len(telemetry),
+        "genesis_hash": genesis_hash,
+        "latest_hash": latest_hash,
         "raw_telemetry": telemetry,
         "access_tier": "REGULATOR",
     })
@@ -169,6 +186,21 @@ async def post_dbp_record(request):
         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
     body = await request.json()
+
+    # Fetch the last record for this battery to build the hash chain
+    last = supabase_select("dbp_records", {
+        "bin": f"eq.{body.get('bin', '')}",
+        "order": "timestamp.desc",
+        "limit": "1",
+        "select": "bin,timestamp,soc_pct,soh_pct,cycle_count,prev_hash",
+    })
+
+    if last:
+        prev_hash = compute_record_hash(last[0])
+    else:
+        prev_hash = "GENESIS"  # first record in the chain
+
+    body["prev_hash"] = prev_hash
     result = supabase_insert("dbp_records", body)
     return JSONResponse({"status": "ok", "data": result}, status_code=201)
 
