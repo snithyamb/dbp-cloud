@@ -47,11 +47,11 @@ def supabase_upsert(table, data, on_conflict="bin"):
     with httpx.Client() as client:
         r = client.post(
             url,
-            headers={
-                **HEADERS,
-                "Prefer": f"return=representation,resolution=merge-duplicates",
-                "on_conflict": on_conflict,
-            },
+               headers={
+                 **HEADERS,
+                   "Prefer": "return=representation,resolution=merge-duplicates",
+               },
+            params={"on_conflict": on_conflict},   ← ADD THIS LINE
             json=data,
             timeout=10,
         )
