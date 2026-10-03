@@ -444,7 +444,7 @@ function lifecycleLabel(soh) {
 }
 
 function renderPassport(pub, stk, full) {
-  const soh     = pub.state_of_health ?? 0;
+  const soh     = pub.soh_pct ?? 0;
   const lcClass = lifecycleClass(soh);
   const lcLabel = lifecycleLabel(soh);
   const tier    = currentUser.tier;
@@ -452,7 +452,7 @@ function renderPassport(pub, stk, full) {
   let html = '';
   html += '<div class="stats-row">';
   html += '<div class="stat-card"><div class="stat-icon">&#x26A1;</div><div class="stat-label">State of Charge</div><div class="stat-value">' + fmt(pub.state_of_charge) + '%</div><div class="stat-sub">SoC &middot; Real-time</div></div>';
-  html += '<div class="stat-card"><div class="stat-icon">&#x1F50B;</div><div class="stat-label">State of Health</div><div class="stat-value">' + fmt(pub.state_of_health) + '%</div><div class="stat-sub">SoH &middot; Capacity ratio</div></div>';
+  html += '<div class="stat-card"><div class="stat-icon">&#x1F50B;</div><div class="stat-label">State of Health</div><div class="stat-value">' + fmt(pub.soh_pct) + '%</div><div class="stat-sub">SoH &middot; Capacity ratio</div></div>';
   html += '<div class="stat-card"><div class="stat-icon">&#x1F504;</div><div class="stat-label">Charge Cycles</div><div class="stat-value">' + fmt(pub.cycle_count) + '</div><div class="stat-sub">Full cycle equiv.</div></div>';
   html += '</div>';
 
@@ -465,7 +465,7 @@ function renderPassport(pub, stk, full) {
   html += '<div class="data-item"><label>Chemistry</label><span>' + fmt(pub.chemistry) + '</span></div>';
   html += '<div class="data-item"><label>Manufacturer</label><span>' + fmt(pub.manufacturer) + '</span></div>';
   html += '<div class="data-item"><label>Capacity (kWh)</label><span>' + fmt(pub.capacity_kwh) + '</span></div>';
-  html += '<div class="data-item"><label>Voltage (V)</label><span>' + fmt(pub.voltage_v) + '</span></div>';
+  html += '<div class="data-item"><label>Voltage (V)</label><span>' + fmt(pub.nominal_voltage_v) + '</span></div>';
   html += '<div class="data-item"><label>Manufacture Date</label><span>' + fmt(pub.manufacture_date) + '</span></div>';
   html += '<div class="data-item"><label>Last Updated</label><span>' + (pub.recorded_at ? new Date(pub.recorded_at).toLocaleString() : '&mdash;') + '</span></div>';
   html += '</div>';
