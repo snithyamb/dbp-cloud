@@ -451,7 +451,7 @@ function renderPassport(pub, stk, full) {
 
   let html = '';
   html += '<div class="stats-row">';
-  html += '<div class="stat-card"><div class="stat-icon">&#x26A1;</div><div class="stat-label">State of Charge</div><div class="stat-value">' + fmt(pub.state_of_charge) + '%</div><div class="stat-sub">SoC &middot; Real-time</div></div>';
+  html += '<div class="stat-card"><div class="stat-icon">&#x26A1;</div><div class="stat-label">State of Charge</div><div class="stat-value">' + fmt(pub.soc_pct) + '%</div><div class="stat-sub">SoC &middot; Real-time</div></div>';
   html += '<div class="stat-card"><div class="stat-icon">&#x1F50B;</div><div class="stat-label">State of Health</div><div class="stat-value">' + fmt(pub.soh_pct) + '%</div><div class="stat-sub">SoH &middot; Capacity ratio</div></div>';
   html += '<div class="stat-card"><div class="stat-icon">&#x1F504;</div><div class="stat-label">Charge Cycles</div><div class="stat-value">' + fmt(pub.cycle_count) + '</div><div class="stat-sub">Full cycle equiv.</div></div>';
   html += '</div>';
