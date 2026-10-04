@@ -143,6 +143,15 @@
 
   /* Results */
   #result { }
+  .live-bar { display: none; align-items: center; gap: 10px; margin-top: 12px; font-size: 0.78rem; color: var(--gray); }
+  .live-bar.visible { display: flex; }
+  .live-bar label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); font-weight: 600; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; display: inline-block; }
+  .live-dot.on { background: #16a34a; animation: livepulse 1.6s infinite; }
+  .live-dot.err { background: #dc2626; }
+  @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .data-item span.changed, .stat-value.changed { animation: valueflash 1.8s ease-out; border-radius: 4px; }
+  @keyframes valueflash { 0% { background: #fde68a; } 100% { background: transparent; } }
   .spinner { text-align: center; padding: 30px; color: var(--gray); font-size: 0.9rem; }
   .spinner::before { content: '\23F3\00A0'; }
 
@@ -336,6 +345,11 @@
       <input class="search-input" type="text" id="binInput" value="DBP-2024HT65556-001"/>
       <button class="search-btn" onclick="lookupBattery()">Look Up Passport</button>
     </div>
+    <div class="live-bar" id="liveBar">
+      <span class="live-dot" id="liveDot"></span>
+      <label><input type="checkbox" id="liveToggle" checked onchange="onLiveToggle()"/> Live update (every 5 s)</label>
+      <span id="liveStatus"></span>
+    </div>
   </div>
 
   <div id="result"></div>
@@ -416,6 +430,8 @@ async function doLogin() {
 }
 
 function logout() {
+  stopLive();
+  document.getElementById('liveBar').classList.remove('visible');
   currentUser = null;
   document.getElementById('portal-screen').style.display = 'none';
   document.getElementById('login-screen').style.display  = 'flex';
@@ -536,10 +552,63 @@ async function verifyHashChain(telemetry, complete) {
   return `&#x274C; Tampering detected &mdash; ${problems.length} problem(s): ${problems.slice(0, 3).join('; ')}`;
 }
 
-async function lookupBattery() {
-  const bin = document.getElementById('binInput').value.trim();
-  if (!bin) return;
-  document.getElementById('result').innerHTML = '<div class="spinner">Fetching passport data&hellip;</div>';
+// -- LIVE UPDATE -------------------------------------------------
+// After a lookup, the same battery is re-fetched every LIVE_MS while the tab
+// is visible. Values that changed flash briefly; the hash chain is re-verified.
+const LIVE_MS = 5000;
+let liveTimer = null, liveBin = null, lookupInFlight = false, lastHashHtml = null;
+
+function setLiveStatus(text, state) {
+  document.getElementById('liveStatus').textContent = text;
+  const dot = document.getElementById('liveDot');
+  dot.className = 'live-dot' + (state ? ' ' + state : '');
+}
+function stopLive() { if (liveTimer) { clearInterval(liveTimer); liveTimer = null; } }
+function startLive() {
+  stopLive();
+  if (!document.getElementById('liveToggle').checked) { setLiveStatus('Paused', ''); return; }
+  liveTimer = setInterval(() => {
+    if (!document.hidden && !lookupInFlight && liveBin) lookupBattery(true);
+  }, LIVE_MS);
+}
+function onLiveToggle() {
+  if (document.getElementById('liveToggle').checked && liveBin) { startLive(); lookupBattery(true); }
+  else { stopLive(); setLiveStatus('Paused', ''); }
+}
+
+function snapshotValues() {
+  const m = {};
+  document.querySelectorAll('#result .data-item').forEach(d => {
+    const l = d.querySelector('label'), v = d.querySelector('span');
+    if (l && v) m[l.textContent] = v.textContent;
+  });
+  document.querySelectorAll('#result .stat-card').forEach(c => {
+    const l = c.querySelector('.stat-label'), v = c.querySelector('.stat-value');
+    if (l && v) m['stat:' + l.textContent] = v.textContent;
+  });
+  return m;
+}
+function flashChanged(before) {
+  document.querySelectorAll('#result .data-item').forEach(d => {
+    const l = d.querySelector('label'), v = d.querySelector('span');
+    if (l && v && l.textContent in before && before[l.textContent] !== v.textContent) v.classList.add('changed');
+  });
+  document.querySelectorAll('#result .stat-card').forEach(c => {
+    const l = c.querySelector('.stat-label'), v = c.querySelector('.stat-value');
+    const k = l && 'stat:' + l.textContent;
+    if (k && k in before && before[k] !== v.textContent) v.classList.add('changed');
+  });
+}
+
+async function lookupBattery(silent = false) {
+  const bin = silent ? liveBin : document.getElementById('binInput').value.trim();
+  if (!bin || lookupInFlight) return;
+  lookupInFlight = true;
+  if (!silent) {
+    lastHashHtml = null;
+    document.getElementById('result').innerHTML = '<div class="spinner">Fetching passport data&hellip;</div>';
+  }
+  const before = silent ? snapshotValues() : null;
 
   try {
     // Always fetch public data
@@ -567,23 +636,49 @@ async function lookupBattery() {
       if (fullRes.ok) fullData = await fullRes.json();
     }
 
+    // keep the user's position on the page while re-rendering
+    const scrollY = window.scrollY;
     renderPassport(pubData, stkData, fullData);
+    if (silent) { window.scrollTo(0, scrollY); flashChanged(before); }
+
+    const el = document.getElementById('hash-chain-result');
     if (fullData && fullData.raw_telemetry && fullData.raw_telemetry.length > 0) {
-      verifyHashChain(fullData.raw_telemetry, fullData.raw_telemetry.length < 50).then(result => {
-        const el = document.getElementById('hash-chain-result');
-        if (el) el.innerHTML = result;
-      });
-    } else {
-      const el = document.getElementById('hash-chain-result');
-      if (el) el.innerHTML = 'Hash not available &mdash; no telemetry records yet';
+      if (el && lastHashHtml) el.innerHTML = lastHashHtml;   // no flicker while re-verifying
+      const result = await verifyHashChain(fullData.raw_telemetry, fullData.raw_telemetry.length < 50);
+      lastHashHtml = result;
+      const el2 = document.getElementById('hash-chain-result');
+      if (el2) el2.innerHTML = result;
+    } else if (el) {
+      el.innerHTML = 'Hash not available &mdash; no telemetry records yet';
+    }
+
+    liveBin = bin;
+    document.getElementById('liveBar').classList.add('visible');
+    if (document.getElementById('liveToggle').checked) {
+      setLiveStatus('Updated ' + new Date().toLocaleTimeString(), 'on');
+      if (!silent) startLive();
     }
   } catch (e) {
-    document.getElementById('result').innerHTML =
-      `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:16px;color:#991b1b;font-size:0.85rem;">
-        &#x274C; ${e.message || 'Error fetching passport data'}
-      </div>`;
+    if (silent) {
+      // keep the last good data on screen; just report the problem
+      setLiveStatus((e.message || 'Update failed') + ' — retrying', 'err');
+      if (/Session expired/.test(e.message || '')) { stopLive(); setLiveStatus(e.message, 'err'); }
+    } else {
+      stopLive();
+      document.getElementById('result').innerHTML =
+        `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:16px;color:#991b1b;font-size:0.85rem;">
+          &#x274C; ${e.message || 'Error fetching passport data'}
+        </div>`;
+    }
+  } finally {
+    lookupInFlight = false;
   }
 }
+
+// resume immediately when the tab becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && liveTimer && liveBin && !lookupInFlight) lookupBattery(true);
+});
 
 function fmt(val, unit) {
   if (val === undefined || val === null) return '&mdash;';
