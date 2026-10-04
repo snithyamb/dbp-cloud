@@ -615,12 +615,16 @@ function renderPassport(pub, stk, full) {
   if (tier >= 2 && stk) {
     html += `<div class="section-title">&#x1F3ED; OEM / Stakeholder Data (Tier 2 &mdash; Authenticated)</div>
       <div class="data-grid">
-        <div class="data-item"><label>Temperature (&deg;C)</label><span>${fmt(stk.temp_celsius)}</span></div>
-        <div class="data-item"><label>Current (A)</label><span>${fmt(stk.current_a)}</span></div>
-        <div class="data-item"><label>Cell Count</label><span>${fmt(stk.cell_count)}</span></div>
-        <div class="data-item"><label>Pack Weight (kg)</label><span>${fmt(stk.weight_kg)}</span></div>
-        <div class="data-item"><label>Charge Rate (kW)</label><span>${fmt(stk.max_charge_rate_kw)}</span></div>
-        <div class="data-item"><label>Depth of Discharge</label><span>${fmt(stk.depth_of_discharge_pct, '%')}</span></div>
+        <div class="data-item"><label>Temperature (&deg;C) §5(j)</label><span>${fmt(stk.temp_celsius)}</span></div>
+        <div class="data-item"><label>Current (A) §5(k)</label><span>${fmt(stk.current_a)}</span></div>
+        <div class="data-item"><label>Depth of Discharge §5(l)</label><span>${fmt(stk.depth_of_discharge_pct, '%')}</span></div>
+        <div class="data-item"><label>Remaining Power (W) §5(n)</label><span>${fmt(stk.remaining_power_w)}</span></div>
+        <div class="data-item"><label>Cycle-life Test C-rate §5</label><span>${fmt(stk.cycle_life_test_c_rate)}</span></div>
+        <div class="data-item"><label>Cobalt Content §4</label><span>${fmt(stk.cobalt_pct, '%')}</span></div>
+        <div class="data-item"><label>Lithium Content §4</label><span>${fmt(stk.lithium_pct, '%')}</span></div>
+        <div class="data-item"><label>Nickel Content §4</label><span>${fmt(stk.nickel_pct, '%')}</span></div>
+        <div class="data-item"><label>Graphite Content §4</label><span>${fmt(stk.graphite_pct, '%')}</span></div>
+        <div class="data-item"><label>Art. 6 Restriction Compliant §4</label><span>${stk.art6_compliant === undefined ? '&mdash;' : (stk.art6_compliant ? 'Yes' : 'No')}</span></div>
       </div>`;
   } else if (tier < 2) {
     html += `<div class="locked-section">
