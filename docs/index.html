@@ -454,48 +454,86 @@ function showPortal() {
 }
 
 // -- LOOKUP ----------------------------------------------------
-async function computeRecordHash(record) {
+// Canonical JSON identical to the server's canonical_json(): sorted keys, no spaces,
+// JavaScript number formatting. record_hash = SHA-256(canonical).
+function canonicalJSON(v) {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'string') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(canonicalJSON).join(',') + ']';
+  return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + canonicalJSON(v[k])).join(',') + '}';
+}
+
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Records written before full-record hashing carry a 6-field hash only.
+async function legacyRecordHash(record) {
   const fields = {};
   ['bin','timestamp','soc_pct','soh_pct','cycle_count','prev_hash'].sort().forEach(k => {
     fields[k] = record[k] !== undefined ? record[k] : null;
   });
-  const msgStr = JSON.stringify(fields, Object.keys(fields).sort());
-  const msgBuf = new TextEncoder().encode(msgStr);
-  const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
-  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  return sha256Hex(JSON.stringify(fields, Object.keys(fields).sort()));
 }
 
-async function verifyHashChain(telemetry) {
-  // telemetry arrives newest-first; verify oldest-to-newest
-  const records = [...telemetry].reverse();
+const VCU_FIELDS = ['soc_pct','soh_pct','soce_pct','remaining_capacity_ah','capacity_fade_pct','remaining_power_w',
+  'power_fade_pct','internal_resistance_mohm','internal_resistance_increase_pct','round_trip_efficiency_pct',
+  'rte_fade_pct','self_discharge_pct_per_month','remaining_life_cycles','remaining_life_years','pack_voltage_v',
+  'current_a','temp_celsius','depth_of_discharge_pct','cycle_count','energy_throughput_kwh','capacity_throughput_ah',
+  'time_extreme_temp_h','time_charging_extreme_temp_h','deep_discharge_events','overcharge_events','accident_events',
+  'lifecycle_status','record_type','event_type','event_detail','raw_telemetry'];
+const TIME_FIELDS = ['timestamp', 'received_at'];
 
-  if (records.length === 0) return 'No records to verify';
+function sameValue(k, col, canon) {
+  if (canon === null || canon === undefined) return col === null || col === undefined;
+  if (col === null || col === undefined) return false;
+  if (TIME_FIELDS.includes(k)) return Date.parse(col) === Date.parse(canon);
+  if (typeof canon === 'number') return Number(col) === canon;
+  if (typeof canon === 'object') return canonicalJSON(col) === canonicalJSON(canon);
+  return col === canon;
+}
 
-  // First record must have prev_hash = GENESIS or null (pre-chain records)
-  const first = records[0];
-  if (!first.prev_hash) {
-    return `&#x26A0; Chain starts before hash tracking was enabled &mdash; ${records.length} record(s) present, verification requires at least 1 new record after the upgrade`;
-  }
-
-  let broken = 0;
-  for (let i = 1; i < records.length; i++) {
-    const prev = records[i - 1];
-    const curr = records[i];
-    const expectedHash = await computeRecordHash(prev);
-    if (curr.prev_hash !== expectedHash) {
-      broken++;
+// Verifies, for every record: (1) SHA-256(canonical) == record_hash,
+// (2) canonical.prev_hash == hash of the previous record, (3) every stored
+// column equals the value in the hashed canonical payload.
+async function verifyHashChain(telemetry, complete) {
+  const recs = [...telemetry].sort((a, b) => a.id - b.id);
+  if (recs.length === 0) return 'No records to verify';
+  let verified = 0, legacy = 0;
+  const problems = [];
+  for (let i = 0; i < recs.length; i++) {
+    const r = recs[i], prev = i > 0 ? recs[i - 1] : null;
+    if (!r.canonical) {                       // legacy record: anchor only
+      legacy++;
+      if (prev) problems.push(`#${r.id}: record without canonical payload after hashed records`);
+      continue;
     }
+    if (await sha256Hex(r.canonical) !== r.record_hash) { problems.push(`#${r.id}: hash mismatch`); continue; }
+    let c;
+    try { c = JSON.parse(r.canonical); } catch (e) { problems.push(`#${r.id}: canonical not JSON`); continue; }
+    if (prev) {
+      const expected = prev.record_hash || await legacyRecordHash(prev);
+      if (c.prev_hash !== expected) problems.push(`#${r.id}: link to #${prev.id} broken`);
+    } else if (complete && c.prev_hash !== 'GENESIS') {
+      problems.push(`#${r.id}: first record does not start at GENESIS`);
+    }
+    const bad = [];
+    for (const k of Object.keys(c)) if (k in r && !sameValue(k, r[k], c[k])) bad.push(k);
+    for (const k of VCU_FIELDS) if (!(k in c) && r[k] !== null && r[k] !== undefined) bad.push(k);
+    if (r.prev_hash !== c.prev_hash) bad.push('prev_hash');
+    if (bad.length) problems.push(`#${r.id}: stored value differs from hashed payload (${bad.join(', ')})`);
+    else verified++;
   }
-
-  const depth = records.length;
-  const latestHash = await computeRecordHash(records[records.length - 1]);
-  const shortHash = latestHash.substring(0, 16) + '&hellip;';
-
-  if (broken === 0) {
-    return `&#x2705; Chain intact &mdash; ${depth} record(s) verified &middot; Tip: ${shortHash}`;
-  } else {
-    return `&#x274C; Chain broken &mdash; ${broken} link(s) failed verification out of ${depth - 1} checked`;
+  const tip = recs[recs.length - 1];
+  const tipHash = (tip.record_hash || await legacyRecordHash(tip)).substring(0, 16) + '&hellip;';
+  const legacyNote = legacy ? ` &middot; ${legacy} legacy genesis record` : '';
+  if (problems.length === 0) {
+    return `&#x2705; Chain intact &mdash; ${verified} record(s) verified (all fields + links)${legacyNote} &middot; Tip: ${tipHash}`;
   }
+  return `&#x274C; Tampering detected &mdash; ${problems.length} problem(s): ${problems.slice(0, 3).join('; ')}`;
 }
 
 async function lookupBattery() {
@@ -531,7 +569,7 @@ async function lookupBattery() {
 
     renderPassport(pubData, stkData, fullData);
     if (fullData && fullData.raw_telemetry && fullData.raw_telemetry.length > 0) {
-      verifyHashChain(fullData.raw_telemetry).then(result => {
+      verifyHashChain(fullData.raw_telemetry, fullData.raw_telemetry.length < 50).then(result => {
         const el = document.getElementById('hash-chain-result');
         if (el) el.innerHTML = result;
       });
@@ -552,21 +590,23 @@ function fmt(val, unit) {
   return val + (unit || '');
 }
 
-function lifecycleClass(soh) {
-  if (soh >= 80) return 'ACTIVE';
-  if (soh >= 70) return 'SECOND_LIFE_ELIGIBLE';
-  return 'END_OF_LIFE';
+// Battery status per Annex XIII 4(c): Original / Repurposed / Remanufactured / Waste
+function lifecycleClass(status) {
+  if (status === 'WASTE') return 'END_OF_LIFE';
+  if (status === 'REPURPOSED' || status === 'REMANUFACTURED') return 'SECOND_LIFE_ELIGIBLE';
+  return 'ACTIVE';
 }
-function lifecycleLabel(soh) {
-  if (soh >= 80) return '&#x2705; Active &middot; SoH &ge; 80%';
-  if (soh >= 70) return '&#x26A0; Second Life Eligible';
-  return '&#x1F534; End of Life';
+function lifecycleLabel(status) {
+  const labels = { ORIGINAL: '&#x2705; Original', REPURPOSED: '&#x267B; Repurposed',
+                   REMANUFACTURED: '&#x1F527; Remanufactured', WASTE: '&#x1F534; Waste' };
+  return labels[status] || (status ? '&#x2705; ' + status : 'Status not reported');
 }
 
 function renderPassport(pub, stk, full) {
-  const soh      = pub.soh_pct ?? 0;
-  const lcClass  = lifecycleClass(soh);
-  const lcLabel  = lifecycleLabel(soh);
+  const status   = pub.lifecycle_status;
+  const lcClass  = lifecycleClass(status);
+  const lcLabel  = lifecycleLabel(status);
+  const dyn      = stk || full;   // in-use (VCU) data — Tier 2+ only
   const tier     = currentUser.tier;
   const data     = full || stk || pub;
 
@@ -577,20 +617,20 @@ function renderPassport(pub, stk, full) {
     <div class="stat-card">
       <div class="stat-icon">&#x26A1;</div>
       <div class="stat-label">State of Charge</div>
-      <div class="stat-value">${fmt(pub.soc_pct)}%</div>
+      <div class="stat-value">${dyn ? fmt(dyn.soc_pct) + '%' : '&#x1F512;'}</div>
       <div class="stat-sub">SoC &middot; Real-time</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon">&#x1F50B;</div>
       <div class="stat-label">State of Health</div>
-      <div class="stat-value">${fmt(pub.soh_pct)}%</div>
+      <div class="stat-value">${dyn ? fmt(dyn.soh_pct) + '%' : '&#x1F512;'}</div>
       <div class="stat-sub">SoH &middot; Capacity ratio</div>
     </div>
     <div class="stat-card">
       <div class="stat-icon">&#x1F504;</div>
       <div class="stat-label">Charge Cycles</div>
-      <div class="stat-value">${fmt(pub.cycle_count)}</div>
-      <div class="stat-sub">Full cycle equiv.</div>
+      <div class="stat-value">${dyn ? fmt(dyn.cycle_count) : '&#x1F512;'}</div>
+      <div class="stat-sub">${dyn ? 'Full cycle equiv.' : 'Tier 2 &middot; interested persons'}</div>
     </div>
   </div>`;
 
@@ -610,6 +650,7 @@ function renderPassport(pub, stk, full) {
     <div class="data-grid">
       <div class="data-item"><label>Chemistry §1(h)</label><span>${fmt(pub.chemistry)}</span></div>
       <div class="data-item"><label>Manufacturer §1(a)</label><span>${fmt(pub.manufacturer)}</span></div>
+      <div class="data-item"><label>Model §1(f)</label><span>${fmt(pub.model)}</span></div>
       <div class="data-item"><label>Manufacturer Country §1(b)</label><span>${fmt(pub.manufacturer_country)}</span></div>
       <div class="data-item"><label>Manufacturer URL §1(c)</label><span>${fmt(pub.manufacturer_url)}</span></div>
       <div class="data-item"><label>Operator ID §1(d)</label><span>${fmt(pub.operator_id)}</span></div>
@@ -630,35 +671,56 @@ function renderPassport(pub, stk, full) {
       <div class="data-item"><label>Expected Lifetime (years) §5(e)</label><span>${fmt(pub.expected_lifetime_years)}</span></div>
       <div class="data-item"><label>Round-trip Efficiency §5(g)</label><span>${fmt(pub.initial_round_trip_efficiency_pct, '%')}</span></div>
       <div class="data-item"><label>Internal Resistance (mΩ) §5(i)</label><span>${fmt(pub.initial_internal_resistance_mohm)}</span></div>
-      <div class="data-item"><label>Remaining Capacity (Ah) §5(m)</label><span>${fmt(pub.remaining_capacity_ah)}</span></div>
+      <div class="data-item"><label>Capacity Exhaustion Threshold §1(k)</label><span>${fmt(pub.capacity_exhaustion_threshold_pct, '% SoH')}</span></div>
+      <div class="data-item"><label>Operating Temp (°C)</label><span>${pub.temp_operating_min_c != null ? pub.temp_operating_min_c + ' to ' + pub.temp_operating_max_c : '&mdash;'}</span></div>
       <div class="data-item"><label>Storage Temp Min (°C) §5(q)</label><span>${fmt(pub.temp_storage_min_c)}</span></div>
       <div class="data-item"><label>Storage Temp Max (°C) §5(q)</label><span>${fmt(pub.temp_storage_max_c)}</span></div>
       <div class="data-item"><label>Thermal Management §5(r)</label><span>${fmt(pub.thermal_management_type)}</span></div>
       <div class="data-item"><label>Hazard Class §6(b)</label><span>${fmt(pub.hazard_class)}</span></div>
+      <div class="data-item"><label>Cobalt / Lithium / Nickel / Graphite §4(b)</label><span>${pub.cobalt_pct != null ? `${pub.cobalt_pct} / ${pub.lithium_pct} / ${pub.nickel_pct} / ${pub.graphite_pct} %` : '&mdash;'}</span></div>
+      <div class="data-item"><label>Recycled Co / Li / Ni §4(e–g)</label><span>${pub.recycled_cobalt_pct != null ? `${pub.recycled_cobalt_pct} / ${pub.recycled_lithium_pct} / ${pub.recycled_nickel_pct} %` : 'Declared from 2028'}</span></div>
+      <div class="data-item"><label>Battery Status §4(c)</label><span>${fmt(pub.lifecycle_status)}</span></div>
       <div class="data-item"><label>Second Life Potential §6(e)</label><span>${pub.second_life_potential !== undefined ? (pub.second_life_potential ? 'Yes' : 'No') : '&mdash;'}</span></div>
       <div class="data-item"><label>Last Updated</label><span>${pub.recorded_at ? new Date(pub.recorded_at).toLocaleString() : '&mdash;'}</span></div>
+      <div class="data-item"><label>Passport QR Code (ISO/IEC 18004)</label><span><img alt="QR code linking to this passport" width="120" height="120" style="margin-top:4px;border:1px solid #e5e7eb;border-radius:6px" src="${API_BASE}/api/v1/dbp/${encodeURIComponent(pub.bin_id)}/qr"/></span></div>
     </div>`;
 
   // -- SECTION: TIER 2 OEM DATA --
   if (tier >= 2 && stk) {
     html += `<div class="section-title">&#x1F3ED; OEM / Stakeholder Data (Tier 2 &mdash; Authenticated)</div>
       <div class="data-grid">
-        <div class="data-item"><label>Temperature (&deg;C) §5(j)</label><span>${fmt(stk.temp_celsius)}</span></div>
-        <div class="data-item"><label>Current (A) §5(k)</label><span>${fmt(stk.current_a)}</span></div>
-        <div class="data-item"><label>Depth of Discharge §5(l)</label><span>${fmt(stk.depth_of_discharge_pct, '%')}</span></div>
+        <div class="data-item"><label>State of Certified Energy (SOCE)</label><span>${fmt(stk.soce_pct, '%')}</span></div>
+        <div class="data-item"><label>Remaining Capacity (Ah) §5(m)</label><span>${fmt(stk.remaining_capacity_ah)}</span></div>
+        <div class="data-item"><label>Capacity Fade</label><span>${fmt(stk.capacity_fade_pct, '%')}</span></div>
         <div class="data-item"><label>Remaining Power (W) §5(n)</label><span>${fmt(stk.remaining_power_w)}</span></div>
-        <div class="data-item"><label>Cycle-life Test C-rate §5</label><span>${fmt(stk.cycle_life_test_c_rate)}</span></div>
-        <div class="data-item"><label>Cobalt Content §4</label><span>${fmt(stk.cobalt_pct, '%')}</span></div>
-        <div class="data-item"><label>Lithium Content §4</label><span>${fmt(stk.lithium_pct, '%')}</span></div>
-        <div class="data-item"><label>Nickel Content §4</label><span>${fmt(stk.nickel_pct, '%')}</span></div>
-        <div class="data-item"><label>Graphite Content §4</label><span>${fmt(stk.graphite_pct, '%')}</span></div>
+        <div class="data-item"><label>Power Fade</label><span>${fmt(stk.power_fade_pct, '%')}</span></div>
+        <div class="data-item"><label>Internal Resistance (mΩ)</label><span>${fmt(stk.internal_resistance_mohm)}</span></div>
+        <div class="data-item"><label>Resistance Increase</label><span>${fmt(stk.internal_resistance_increase_pct, '%')}</span></div>
+        <div class="data-item"><label>Round-trip Efficiency (now)</label><span>${fmt(stk.round_trip_efficiency_pct, '%')}</span></div>
+        <div class="data-item"><label>RTE Fade</label><span>${fmt(stk.rte_fade_pct, '%')}</span></div>
+        <div class="data-item"><label>Self-discharge (%/month)</label><span>${fmt(stk.self_discharge_pct_per_month)}</span></div>
+        <div class="data-item"><label>Remaining Useful Life (cycles)</label><span>${fmt(stk.remaining_life_cycles)}</span></div>
+        <div class="data-item"><label>Energy Throughput (kWh)</label><span>${fmt(stk.energy_throughput_kwh)}</span></div>
+        <div class="data-item"><label>Capacity Throughput (Ah)</label><span>${fmt(stk.capacity_throughput_ah)}</span></div>
+        <div class="data-item"><label>Pack Voltage (V)</label><span>${fmt(stk.pack_voltage_v)}</span></div>
+        <div class="data-item"><label>Temperature (&deg;C)</label><span>${fmt(stk.temp_celsius)}</span></div>
+        <div class="data-item"><label>Current (A)</label><span>${fmt(stk.current_a)}</span></div>
+        <div class="data-item"><label>Depth of Discharge</label><span>${fmt(stk.depth_of_discharge_pct, '%')}</span></div>
+        <div class="data-item"><label>Time at Extreme Temp (h)</label><span>${fmt(stk.time_extreme_temp_h)}</span></div>
+        <div class="data-item"><label>Charging at Extreme Temp (h)</label><span>${fmt(stk.time_charging_extreme_temp_h)}</span></div>
+        <div class="data-item"><label>Deep-discharge Events</label><span>${fmt(stk.deep_discharge_events)}</span></div>
+        <div class="data-item"><label>Overcharge Events</label><span>${fmt(stk.overcharge_events)}</span></div>
+        <div class="data-item"><label>Accidents / Negative Events</label><span>${fmt(stk.accident_events)}</span></div>
+        <div class="data-item"><label>Data Provider</label><span>${fmt(stk.data_provider)}</span></div>
+        <div class="data-item"><label>Cycle-life Test C-rate</label><span>${fmt(stk.cycle_life_test_c_rate)}</span></div>
+        <div class="data-item"><label>Co / Li / Ni / Graphite Origin §3</label><span>${[stk.cobalt_country_of_origin, stk.lithium_country_of_origin, stk.nickel_country_of_origin, stk.graphite_country_of_origin].map(x => x || '—').join(' / ')}</span></div>
         <div class="data-item"><label>Art. 6 Restriction Compliant §4</label><span>${stk.art6_compliant === undefined ? '&mdash;' : (stk.art6_compliant ? 'Yes' : 'No')}</span></div>
       </div>`;
   } else if (tier < 2) {
     html += `<div class="locked-section">
       <div class="lock-icon">&#x1F512;</div>
       <p><strong>OEM / Stakeholder Data &mdash; Tier 2 Required</strong></p>
-      <p>Temperature, current, cell count, charge rate and supply chain data are accessible only to authenticated OEM partners via OAuth 2.0.</p>
+      <p>SoC, SoH, cycle count, throughput, temperature and event history from the VCU are accessible only to authenticated interested persons (Art. 77).</p>
     </div>`;
   }
 
