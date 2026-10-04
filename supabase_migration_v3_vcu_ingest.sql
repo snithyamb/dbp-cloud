@@ -86,3 +86,15 @@ WHERE bin = 'DBP-2024HT65556-001';
 
 -- 6. Check: should list the trigger and the new columns
 SELECT tgname FROM pg_trigger WHERE tgrelid = 'dbp_records'::regclass AND NOT tgisinternal;
+
+-- 7. Event records carry no SoC/SoH: drop leftover NOT NULL rules (all columns except id, bin)
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN SELECT attname FROM pg_attribute
+           WHERE attrelid = 'dbp_records'::regclass AND attnum > 0 AND NOT attisdropped
+             AND attnotnull AND attname NOT IN ('id', 'bin')
+  LOOP
+    EXECUTE format('ALTER TABLE dbp_records ALTER COLUMN %I DROP NOT NULL', c.attname);
+  END LOOP;
+END $$;
