@@ -1,5 +1,8 @@
 import os
 import hashlib
+import hmac
+import base64
+import time
 import json
 import httpx
 from starlette.applications import Starlette
@@ -10,7 +13,18 @@ from starlette.middleware.cors import CORSMiddleware
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 VCU_TOKEN    = os.environ.get("VCU_TOKEN", "")
-TIER3_KEY    = os.environ.get("TIER3_KEY", "")
+TIER3_KEY    = os.environ.get("TIER3_KEY", "")      # machine access to /full and /provision — never put in the web page
+
+# Portal login (server-side). Passwords and the signing secret live only in Render env vars.
+SESSION_SECRET     = os.environ.get("SESSION_SECRET", "")
+OEM_PASSWORD       = os.environ.get("OEM_PASSWORD", "")
+REGULATOR_PASSWORD = os.environ.get("REGULATOR_PASSWORD", "")
+SESSION_TTL_S      = 3600
+
+PORTAL_USERS = {
+    "oem@dbp.eu":       {"tier": 2, "password": OEM_PASSWORD},
+    "regulator@eu.gov": {"tier": 3, "password": REGULATOR_PASSWORD},
+}
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
@@ -57,6 +71,63 @@ def supabase_upsert(table, data, on_conflict="bin"):
         )
         r.raise_for_status()
         return r.json()
+
+
+# ── Sessions (HMAC-signed, expiring) ──────────────────────────────────────────
+
+def _b64(b):
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+def issue_session(email, tier):
+    payload = _b64(json.dumps({"sub": email, "tier": tier,
+                               "exp": int(time.time()) + SESSION_TTL_S}).encode())
+    sig = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+
+def session_tier(token):
+    """Return the tier carried by a valid, unexpired session token, else 0."""
+    if not SESSION_SECRET or not token or "." not in token:
+        return 0
+    payload, sig = token.rsplit(".", 1)
+    good = hmac.new(SESSION_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, good):
+        return 0
+    try:
+        data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    except ValueError:
+        return 0
+    if data.get("exp", 0) < time.time():
+        return 0
+    return int(data.get("tier", 0))
+
+
+def request_tier(request):
+    """Tier granted to this request: session bearer token, or TIER3_KEY for machine clients."""
+    if TIER3_KEY and hmac.compare_digest(request.headers.get("x-api-key", ""), TIER3_KEY):
+        return 3
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        return session_tier(auth[len("Bearer "):].strip())
+    return 0
+
+
+async def login(request):
+    """POST /api/v1/auth/login  {email, password} → {token, tier, expires_in}"""
+    if not SESSION_SECRET:
+        return JSONResponse({"detail": "Login not configured"}, status_code=503)
+    try:
+        body = await request.json()
+    except ValueError:
+        return JSONResponse({"detail": "Invalid JSON"}, status_code=400)
+    email = str(body.get("email", "")).strip().lower()
+    password = str(body.get("password", ""))
+    user = PORTAL_USERS.get(email)
+    if not user or not user["password"] or not hmac.compare_digest(password, user["password"]):
+        return JSONResponse({"detail": "Invalid email or password"}, status_code=401)
+    return JSONResponse({"token": issue_session(email, user["tier"]),
+                         "tier": user["tier"], "expires_in": SESSION_TTL_S})
 
 
 # ── Hash chain ────────────────────────────────────────────────────────────────
@@ -246,8 +317,7 @@ async def get_stakeholder_info(request):
     """
     bin_id = request.path_params["bin_id"]
 
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
+    if request_tier(request) < 2:
         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
     telemetry = supabase_select("dbp_records", {
@@ -293,8 +363,7 @@ async def get_full_passport(request):
     """
     bin_id = request.path_params["bin_id"]
 
-    api_key = request.headers.get("x-api-key", "")
-    if not TIER3_KEY or api_key != TIER3_KEY:
+    if request_tier(request) < 3:
         return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
     telemetry = supabase_select("dbp_records", {
@@ -348,7 +417,7 @@ async def post_dbp_record(request):
     VCU telemetry push. Attaches prev_hash before insert.
     """
     auth = request.headers.get("Authorization", "")
-    if auth != f"Bearer {VCU_TOKEN}":
+    if not VCU_TOKEN or not hmac.compare_digest(auth, f"Bearer {VCU_TOKEN}"):
         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
     body = await request.json()
@@ -375,7 +444,7 @@ async def provision_passport(request):
     All Annex XIII static fields accepted.
     """
     api_key = request.headers.get("x-api-key", "")
-    if not TIER3_KEY or api_key != TIER3_KEY:
+    if not TIER3_KEY or not hmac.compare_digest(api_key, TIER3_KEY):
         return JSONResponse({"detail": "Forbidden"}, status_code=403)
 
     body = await request.json()
@@ -416,6 +485,7 @@ routes = [
     Route("/api/v1/dbp/{bin_id}/full",      get_full_passport),
     Route("/api/v1/dbp/record",             post_dbp_record,    methods=["POST"]),
     Route("/api/v1/dbp/provision",          provision_passport, methods=["POST"]),
+    Route("/api/v1/auth/login",             login,              methods=["POST"]),
     Route("/api/v1/batteries",              list_batteries),
 ]
 
