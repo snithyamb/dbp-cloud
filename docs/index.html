@@ -287,7 +287,7 @@
 
     <!-- Demo credentials quick-fill -->
     <div class="demo-creds">
-      <p>Demo Accounts &mdash; Click to auto-fill</p>
+      <p>Demo Accounts &mdash; Tier 2/3 passwords are verified by the server</p>
 
       <div class="cred-row" onclick="fillCreds('public@dbp.eu','Public@123')">
         <div class="cred-info">
@@ -297,18 +297,18 @@
         <span class="tier-badge t1">Tier 1 &middot; Public</span>
       </div>
 
-      <div class="cred-row" onclick="fillCreds('oem@dbp.eu','OEM@2024')">
+      <div class="cred-row" onclick="fillCreds('oem@dbp.eu','')">
         <div class="cred-info">
           <span class="cred-email">oem@dbp.eu</span>
-          <span class="cred-pass">Password: OEM@2024</span>
+          <span class="cred-pass">Password issued separately</span>
         </div>
         <span class="tier-badge t2">Tier 2 &middot; OEM</span>
       </div>
 
-      <div class="cred-row" onclick="fillCreds('regulator@eu.gov','Regulator@EU')">
+      <div class="cred-row" onclick="fillCreds('regulator@eu.gov','')">
         <div class="cred-info">
           <span class="cred-email">regulator@eu.gov</span>
-          <span class="cred-pass">Password: Regulator@EU</span>
+          <span class="cred-pass">Password issued separately</span>
         </div>
         <span class="tier-badge t3">Tier 3 &middot; Regulator</span>
       </div>
@@ -352,14 +352,12 @@ const USERS = {
     dotColor: '#16a34a'
   },
   'oem@dbp.eu': {
-    password: 'OEM@2024',
     tier: 2,
     name: 'OEM Engineer',
     role: 'Tier 2 &middot; OEM / OAuth 2.0',
     dotColor: '#d97706'
   },
   'regulator@eu.gov': {
-    password: 'Regulator@EU',
     tier: 3,
     name: 'EU Regulator',
     role: 'Tier 3 &middot; Regulator / X.509',
@@ -375,18 +373,46 @@ function fillCreds(email, pass) {
   document.getElementById('emailInput').value = email;
   document.getElementById('passInput').value = pass;
   document.getElementById('loginError').style.display = 'none';
+  if (!pass) document.getElementById('passInput').focus();
 }
 
-function doLogin() {
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function doLogin() {
   const email = document.getElementById('emailInput').value.trim().toLowerCase();
   const pass  = document.getElementById('passInput').value;
   const user  = USERS[email];
-  if (!user || user.password !== pass) {
-    document.getElementById('loginError').style.display = 'block';
+  if (!user) { showLoginError('Invalid email or password. Please try again.'); return; }
+
+  // Tier 1 is public by regulation: no credentials are checked or needed.
+  if (user.tier === 1) {
+    currentUser = { email, ...user, token: null };
+    showPortal();
     return;
   }
-  currentUser = { email, ...user };
-  showPortal();
+
+  // Tier 2/3: the server verifies the password and issues a short-lived signed session token.
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    if (!res.ok) {
+      showLoginError(res.status === 401 ? 'Invalid email or password. Please try again.'
+                                        : 'Login service unavailable (' + res.status + ').');
+      return;
+    }
+    const data = await res.json();
+    currentUser = { email, ...user, tier: data.tier, token: data.token };
+    showPortal();
+  } catch (e) {
+    showLoginError('Cannot reach the passport server. It may be waking up; try again in 30 seconds.');
+  }
 }
 
 function logout() {
@@ -487,8 +513,9 @@ async function lookupBattery() {
     let stkData = null;
     if (currentUser.tier >= 2) {
       const stkRes = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/stakeholder`, {
-        headers: { 'Authorization': 'Bearer vcutoken_2024ht65556' }
+        headers: { 'Authorization': 'Bearer ' + currentUser.token }
       });
+      if (stkRes.status === 401) throw new Error('Session expired. Please log out and sign in again.');
       if (stkRes.ok) stkData = await stkRes.json();
     }
 
@@ -496,8 +523,9 @@ async function lookupBattery() {
     let fullData = null;
     if (currentUser.tier >= 3) {
       const fullRes = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/full`, {
-        headers: { 'x-api-key': 'REGULATOR-TIER3-2024HT65556' }
+        headers: { 'Authorization': 'Bearer ' + currentUser.token }
       });
+      if (fullRes.status === 403) throw new Error('Session expired. Please log out and sign in again.');
       if (fullRes.ok) fullData = await fullRes.json();
     }
 
