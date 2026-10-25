@@ -639,6 +639,27 @@ async def provision_passport(request):
     return JSONResponse({"status": "ok", "data": result}, status_code=200)
 
 
+async def get_chain(request):
+    """Tier 3 — the whole record history in id order, page by page, for full hash-chain verification.
+    GET /api/v1/dbp/{bin}/chain?after_id=<last id seen>&limit=<1..1000, default 500>"""
+    bin_id = request.path_params["bin_id"]
+    if request_tier(request) < 3:
+        return JSONResponse({"detail": "Forbidden"}, status_code=403)
+    try:
+        after = int(request.query_params.get("after_id", "0"))
+        limit = min(max(int(request.query_params.get("limit", "500")), 1), 1000)
+    except ValueError:
+        return JSONResponse({"detail": "after_id and limit must be integers"}, status_code=400)
+    rows = supabase_select("dbp_records", {
+        "bin": f"eq.{bin_id}", "id": f"gt.{after}", "order": "id.asc", "limit": str(limit), "select": "*",
+    })
+    return JSONResponse({
+        "bin_id": bin_id,
+        "records": rows,
+        "next_after_id": rows[-1]["id"] if len(rows) == limit else None,
+    })
+
+
 async def list_batteries(request):
     data = supabase_select("dbp_records", {"select": "bin", "order": "id.desc"})
     bins = list(dict.fromkeys(r["bin"] for r in data))
@@ -646,7 +667,7 @@ async def list_batteries(request):
 
 
 async def health(request):
-    return JSONResponse({"status": "ok", "annex_xiii_fields": "v3", "vcu_ingest": "v2-full-hash"})
+    return JSONResponse({"status": "ok", "annex_xiii_fields": "v3", "vcu_ingest": "v2-full-hash", "chain_api": "v1-paged"})
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -661,11 +682,44 @@ routes = [
     Route("/api/v1/dbp/{bin_id}/public",      get_public_info),
     Route("/api/v1/dbp/{bin_id}/stakeholder", get_stakeholder_info),
     Route("/api/v1/dbp/{bin_id}/full",        get_full_passport),
+    Route("/api/v1/dbp/{bin_id}/chain",       get_chain),
     Route("/api/v1/dbp/{bin_id}/qr",          get_qr),
     Route("/api/v1/batteries",                list_batteries),
 ]
 
+class JSONErrors:
+    """Turn unhandled errors into JSON responses *inside* the CORS layer, so the portal
+    sees a readable message (e.g. database paused) instead of a bare 'Failed to fetch'."""
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        started = False
+
+        async def send_wrap(message):
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+        try:
+            await self.app(scope, receive, send_wrap)
+        except Exception as e:  # noqa: BLE001
+            if started:
+                raise
+            import traceback
+            traceback.print_exc()
+            if isinstance(e, httpx.HTTPError):
+                resp = JSONResponse({"detail": "Database unavailable — it may be paused or restarting. Try again in a minute."},
+                                    status_code=503)
+            else:
+                resp = JSONResponse({"detail": f"Internal error: {type(e).__name__}"}, status_code=500)
+            await resp(scope, receive, send)
+
+
 app = Starlette(routes=routes)
+app.add_middleware(JSONErrors)          # inner: added first
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
