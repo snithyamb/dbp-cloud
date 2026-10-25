@@ -512,44 +512,69 @@ function sameValue(k, col, canon) {
   return col === canon;
 }
 
-// Verifies, for every record: (1) SHA-256(canonical) == record_hash,
-// (2) canonical.prev_hash == hash of the previous record, (3) every stored
-// column equals the value in the hashed canonical payload.
-async function verifyHashChain(telemetry, complete) {
-  const recs = [...telemetry].sort((a, b) => a.id - b.id);
-  if (recs.length === 0) return 'No records to verify';
-  let verified = 0, legacy = 0;
-  const problems = [];
-  for (let i = 0; i < recs.length; i++) {
-    const r = recs[i], prev = i > 0 ? recs[i - 1] : null;
-    if (!r.canonical) {                       // legacy record: anchor only
-      legacy++;
-      if (prev) problems.push(`#${r.id}: record without canonical payload after hashed records`);
-      continue;
-    }
-    if (await sha256Hex(r.canonical) !== r.record_hash) { problems.push(`#${r.id}: hash mismatch`); continue; }
-    let c;
-    try { c = JSON.parse(r.canonical); } catch (e) { problems.push(`#${r.id}: canonical not JSON`); continue; }
-    if (prev) {
-      const expected = prev.record_hash || await legacyRecordHash(prev);
-      if (c.prev_hash !== expected) problems.push(`#${r.id}: link to #${prev.id} broken`);
-    } else if (complete && c.prev_hash !== 'GENESIS') {
-      problems.push(`#${r.id}: first record does not start at GENESIS`);
-    }
-    const bad = [];
-    for (const k of Object.keys(c)) if (k in r && !sameValue(k, r[k], c[k])) bad.push(k);
-    for (const k of VCU_FIELDS) if (!(k in c) && r[k] !== null && r[k] !== undefined) bad.push(k);
-    if (r.prev_hash !== c.prev_hash) bad.push('prev_hash');
-    if (bad.length) problems.push(`#${r.id}: stored value differs from hashed payload (${bad.join(', ')})`);
-    else verified++;
+// Full-history verification. The whole chain is fetched page by page from
+// /chain (Tier 3) and checked from the first record (GENESIS) to the tip:
+// (1) SHA-256(canonical) == record_hash, (2) canonical.prev_hash == hash of the
+// previous record, (3) every stored column equals the value in the hashed payload.
+// The result is kept, so live refreshes only fetch and check the new records.
+const CHAIN_PAGE = 500;
+let chainState = null;   // {bin, lastId, prev, verified, legacy, problems, firstTs}
+
+async function checkRecord(r, prev, st) {
+  if (!r.canonical) {                         // legacy record: anchor only
+    st.legacy++;
+    if (prev) st.problems.push(`#${r.id}: record without canonical payload after hashed records`);
+    return;
   }
-  const tip = recs[recs.length - 1];
-  const tipHash = (tip.record_hash || await legacyRecordHash(tip)).substring(0, 16) + '&hellip;';
-  const legacyNote = legacy ? ` &middot; ${legacy} legacy genesis record` : '';
-  if (problems.length === 0) {
-    return `&#x2705; Chain intact &mdash; ${verified} record(s) verified (all fields + links)${legacyNote} &middot; Tip: ${tipHash}`;
+  if (await sha256Hex(r.canonical) !== r.record_hash) { st.problems.push(`#${r.id}: hash mismatch`); return; }
+  let c;
+  try { c = JSON.parse(r.canonical); } catch (e) { st.problems.push(`#${r.id}: canonical not JSON`); return; }
+  if (prev) {
+    const expected = prev.record_hash || await legacyRecordHash(prev);
+    if (c.prev_hash !== expected) st.problems.push(`#${r.id}: link to #${prev.id} broken`);
+  } else if (c.prev_hash !== 'GENESIS') {
+    st.problems.push(`#${r.id}: first record does not start at GENESIS`);
   }
-  return `&#x274C; Tampering detected &mdash; ${problems.length} problem(s): ${problems.slice(0, 3).join('; ')}`;
+  const bad = [];
+  for (const k of Object.keys(c)) if (k in r && !sameValue(k, r[k], c[k])) bad.push(k);
+  for (const k of VCU_FIELDS) if (!(k in c) && r[k] !== null && r[k] !== undefined) bad.push(k);
+  if (r.prev_hash !== c.prev_hash) bad.push('prev_hash');
+  if (bad.length) st.problems.push(`#${r.id}: stored value differs from hashed payload (${bad.join(', ')})`);
+  else st.verified++;
+}
+
+async function verifyFullChain(bin, onProgress) {
+  if (!chainState || chainState.bin !== bin) {
+    chainState = { bin, lastId: 0, prev: null, verified: 0, legacy: 0, total: 0, problems: [], firstTs: null };
+  }
+  const st = chainState;
+  for (;;) {
+    const res = await fetch(`${API_BASE}/api/v1/dbp/${encodeURIComponent(bin)}/chain?after_id=${st.lastId}&limit=${CHAIN_PAGE}`,
+                            { headers: { 'Authorization': 'Bearer ' + currentUser.token } });
+    if (res.status === 403) throw new Error('Session expired. Please log out and sign in again.');
+    if (!res.ok) throw new Error('Chain fetch failed (HTTP ' + res.status + ')');
+    const page = await res.json();
+    for (const r of page.records) {
+      if (!st.firstTs) st.firstTs = r.timestamp;
+      await checkRecord(r, st.prev, st);
+      st.prev = r; st.lastId = r.id; st.total++;
+    }
+    if (onProgress && page.records.length) onProgress(st.total);
+    if (!page.next_after_id) break;
+  }
+  return chainSummary(st);
+}
+
+async function chainSummary(st) {
+  const total = st.total;
+  if (!st.prev) return 'No records to verify';
+  const tipHash = (st.prev.record_hash || await legacyRecordHash(st.prev)).substring(0, 16) + '&hellip;';
+  const legacyNote = st.legacy ? ` &middot; ${st.legacy} legacy genesis record` : '';
+  const since = st.firstTs ? ` since ${new Date(st.firstTs).toLocaleString()}` : '';
+  if (st.problems.length === 0) {
+    return `&#x2705; Chain intact &mdash; all ${total.toLocaleString()} record(s) verified from GENESIS${since} (all fields + links)${legacyNote} &middot; Tip: ${tipHash}`;
+  }
+  return `&#x274C; Tampering detected &mdash; ${st.problems.length} problem(s) in ${total.toLocaleString()} record(s): ${st.problems.slice(0, 3).join('; ')}`;
 }
 
 // -- LIVE UPDATE -------------------------------------------------
@@ -644,7 +669,12 @@ async function lookupBattery(silent = false) {
     const el = document.getElementById('hash-chain-result');
     if (fullData && fullData.raw_telemetry && fullData.raw_telemetry.length > 0) {
       if (el && lastHashHtml) el.innerHTML = lastHashHtml;   // no flicker while re-verifying
-      const result = await verifyHashChain(fullData.raw_telemetry, fullData.raw_telemetry.length < 50);
+      else if (el) el.innerHTML = 'Verifying full history&hellip;';
+      if (!silent) chainState = null;                       // fresh lookup: verify from GENESIS again
+      const result = await verifyFullChain(bin, n => {
+        const e = document.getElementById('hash-chain-result');
+        if (e && !lastHashHtml) e.innerHTML = `Verifying full history&hellip; ${n.toLocaleString()} record(s) checked`;
+      });
       lastHashHtml = result;
       const el2 = document.getElementById('hash-chain-result');
       if (el2) el2.innerHTML = result;
