@@ -1,2 +1,5 @@
 .vcu_sim_state_*.json
 __pycache__/
+# device secrets (Wi-Fi password, VCU token) – never commit
+secrets.h
+*.env
