@@ -1,0 +1,58 @@
+{
+  "_comment": "Copy to /etc/dbp-vcu/vcu_config.json and edit. Signal names must match your DBC. bin starts on the TEST battery -003; change to -001 only after the bench tests pass.",
+
+  "bin": "DBP-2024HT65556-003",
+  "vcu_id": "VCU-RPI-ACC-01",
+  "api_url": "https://dbp-cloud.onrender.com/api/v1/dbp/record",
+
+  "can_interface": "socketcan",
+  "can_channel": "can0",
+  "dbc_file": "/etc/dbp-vcu/bms.dbc",
+
+  "signals": {
+    "current_a":          "BMS_Dynamic.Pack_Current",
+    "soc_pct":            "BMS_Dynamic.SoC",
+    "soh_pct":            "BMS_Dynamic.SoH",
+    "cycle_count":        "BMS_Dynamic.Cycle_Count",
+    "nominal_voltage_v":  "BMS_Static.Pack_Voltage_Nominal",
+    "rated_capacity_ah":  "BMS_Static.Rated_Capacity",
+
+    "pack_voltage_v":     "BMS_Thermal_Fault.Pack_Voltage",
+    "temp_max_c":         "BMS_Thermal_Fault.Temp_Max",
+    "temp_min_c":         "BMS_Thermal_Fault.Temp_Min",
+    "cell_v_min":         "BMS_Thermal_Fault.Cell_V_Min",
+    "cell_v_max":         "BMS_Thermal_Fault.Cell_V_Max",
+    "fault_crash":        "BMS_Thermal_Fault.Fault_Crash"
+  },
+  "current_positive_is_discharge": true,
+
+  "battery": {
+    "rated_capacity_ah": 60.0,
+    "nominal_voltage_v": 48.0,
+    "rated_energy_kwh": 2.88,
+    "rated_power_w": 3000,
+    "initial_resistance_mohm": 50.0,
+    "initial_rte_pct": 97.5,
+    "expected_lifetime_cycles": 1000,
+    "eol_soh_pct": 80.0
+  },
+
+  "limits": {
+    "extreme_hot_c": 45.0,
+    "extreme_cold_c": -10.0,
+    "deep_discharge_soc_pct": 5.0,
+    "deep_discharge_cell_v": 2.5,
+    "overcharge_cell_v": 4.25,
+    "rest_current_a": 0.5,
+    "rest_minutes_for_self_discharge": 30
+  },
+
+  "upload": {
+    "telemetry_interval_s": 60,
+    "send_on_cycle_end": true,
+    "bms_silence_timeout_s": 5,
+    "require_time_sync": true
+  },
+
+  "state_dir": "/var/lib/dbp-vcu"
+}

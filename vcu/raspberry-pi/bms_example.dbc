@@ -1,0 +1,36 @@
+VERSION ""
+
+NS_ :
+
+BS_:
+
+BU_: BMS VCU
+
+CM_ "EXAMPLE layout for the DBP STM32F103C8T6 BMS. Replace with the DBC you load into the TOSUN CAN SPY; dbp_vcu.py only needs the signal names in vcu_config.json to match.";
+
+BO_ 256 BMS_Static: 8 BMS
+ SG_ Pack_Voltage_Nominal : 0|16@1+ (0.1,0) [0|6553.5] "V" VCU
+ SG_ Rated_Capacity : 16|16@1+ (0.1,0) [0|6553.5] "Ah" VCU
+ SG_ BIN_Serial : 32|32@1+ (1,0) [0|4294967295] "" VCU
+
+BO_ 257 BMS_Dynamic: 8 BMS
+ SG_ Pack_Current : 0|16@1- (0.1,0) [-3276.8|3276.7] "A" VCU
+ SG_ SoC : 16|8@1+ (0.5,0) [0|127.5] "%" VCU
+ SG_ SoH : 24|8@1+ (0.5,0) [0|127.5] "%" VCU
+ SG_ Cycle_Count : 32|16@1+ (1,0) [0|65535] "" VCU
+
+BO_ 258 BMS_Thermal_Fault: 8 BMS
+ SG_ Pack_Voltage : 0|16@1+ (0.01,0) [0|655.35] "V" VCU
+ SG_ Temp_Max : 16|8@1+ (1,-40) [-40|215] "degC" VCU
+ SG_ Temp_Min : 24|8@1+ (1,-40) [-40|215] "degC" VCU
+ SG_ Cell_V_Min : 32|8@1+ (0.01,2) [2|4.55] "V" VCU
+ SG_ Cell_V_Max : 40|8@1+ (0.01,2) [2|4.55] "V" VCU
+ SG_ Fault_Overvoltage : 48|1@1+ (1,0) [0|1] "" VCU
+ SG_ Fault_Undervoltage : 49|1@1+ (1,0) [0|1] "" VCU
+ SG_ Fault_Overtemp : 50|1@1+ (1,0) [0|1] "" VCU
+ SG_ Fault_Overcurrent : 51|1@1+ (1,0) [0|1] "" VCU
+ SG_ Fault_Crash : 52|1@1+ (1,0) [0|1] "" VCU
+
+CM_ BO_ 256 "1 Hz. Static frame (BIN, nominal voltage, rated capacity).";
+CM_ BO_ 257 "10 Hz. Dynamic frame. Pack_Current positive = discharge.";
+CM_ BO_ 258 "10 Hz. PROPOSED Phase 2 frame: live pack voltage, temperatures, cell voltage extremes, fault flags.";

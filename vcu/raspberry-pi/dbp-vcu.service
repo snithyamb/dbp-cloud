@@ -1,0 +1,23 @@
+[Unit]
+Description=DBP VCU gateway (BMS CAN -> Digital Battery Passport)
+Wants=network-online.target time-sync.target
+After=network-online.target time-sync.target sys-subsystem-net-devices-can0.device
+BindsTo=sys-subsystem-net-devices-can0.device
+
+[Service]
+Type=simple
+User=dbpvcu
+Group=dbpvcu
+EnvironmentFile=/etc/dbp-vcu/dbp-vcu.env
+ExecStart=/usr/bin/python3 /opt/dbp-vcu/dbp_vcu.py --config /etc/dbp-vcu/vcu_config.json
+Restart=always
+RestartSec=5
+StateDirectory=dbp-vcu
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

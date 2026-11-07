@@ -1,0 +1,7 @@
+# /etc/systemd/network/80-can.network — brings can0 up at 500 kbit/s on every boot
+[Match]
+Name=can0
+
+[CAN]
+BitRate=500K
+RestartSec=100ms
